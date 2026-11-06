@@ -1,71 +1,45 @@
 # PCW porting notes
 
-## Source audit
+## Scope
 
-The upstream project has common code plus separate RD1 and RD2 engines. The
-desktop platform layer and audio backend are not suitable dependencies for a
-3.4 MHz Z80 / CP/M target. The PCW version should be a native implementation
-of the necessary game logic and data formats, not an attempt to compile the
-SDL desktop application unchanged.
+Target: Amstrad PCW 9256, native Z80/CP/M program, using the dK'Tronics AY-3-8912 sound interface. Initial game target is Rick Dangerous I only. This is a native port, not an SDL build or emulator wrapper.
 
-Initial upstream areas to inspect in detail:
+## Confirmed dK'Tronics interface
 
-- `src/sysvid.c` — video presentation/platform boundary
-- `src/syskbd.c` — keyboard mapping
-- `src/system.c` — startup, timing and shutdown
-- `src/xrick.c` — game selection/startup
-- `src/rd1/` — first game's engine and data
-- `src/rd2/` — second game's engine and data
+John Elliott's PCW hardware reference documents:
 
-The first target should be Rick Dangerous I only.
+- `AAh`: select AY register
+- `ABh`: write selected AY register
+- `A9h`: read selected AY register
 
-## Display
+AY register 14 is the joystick input/output port. Keep bit 6 of AY register 7 clear when port A is to be read as input. The current `PCWAYTST.ASM` is still an unassembled, untested smoke-test source; it must be built and tried on Joyce and real hardware before being treated as working.
 
-The PCW display is 720 x 256 monochrome. Its video controller uses a
-256-entry roller-RAM table rather than a conventional linear framebuffer.
-A native renderer must understand the screen memory layout and the current
-CP/M screen environment before taking over video.
+## PCW display
 
-The roller RAM may make vertical scrolling useful, but horizontal scrolling
-is constrained. Likely strategies include a reduced viewport, tile redraw,
-dirty rectangles and software scrolling. These need measurement on hardware.
+The PCW display is 720 x 256 monochrome. Its video controller uses a 256-entry Roller-RAM table. Each scan line is mapped independently and the controller fetches screen bytes at eight-byte intervals. See `UPSTREAM_AUDIT.md` for the proposed first viewport and rendering strategy.
+
+Do not alter Roller-RAM in the game until a separate diagnostic can save and restore the original video state.
 
 ## CPU and memory
 
-The Z80 runs at approximately 3.4 MHz. The machine uses banked 16 KB memory
-blocks; the normal CP/M transient program area is not equivalent to all
-physical RAM being freely available.
+The Z80 runs at approximately 4 MHz (with wait states depending on the machine). The machine has banked 16 KB memory blocks; the normal CP/M transient program area is not equivalent to all physical RAM being freely available.
 
-The first prototype should remain within the normal TPA and avoid paging
-memory until a bank manager and a safe restoration strategy have been
-designed. Rendering should favour preconverted sprite masks, bounded redraws
-and compact data structures.
+Avoid assuming a full 320x200 byte-per-pixel framebuffer will fit in the TPA. A packed 1-bit 320x200 buffer requires 8,000 bytes; the display mapping and blitter still need measurement.
 
-## dK'Tronics sound
+## Upstream source
 
-The current prototype assumes the following AY-3-8912 interface:
-
-- A9h: read selected register
-- AAh: select AY register
-- ABh: write selected register
-
-Treat this mapping as provisional until checked against reliable board
-documentation and the actual interface. AY register 14 is associated with
-the joystick interface; joystick reads should be kept separate from sound
-playback. Preserve the correct port-direction setting in register 7.
+The current upstream repository has an `xrick/` directory at its root. Common source is in `xrick/src/`; RD1 source is in `xrick/src/rd1/`; RD2 is separate in `xrick/src/rd2/`. The detailed audit is in `UPSTREAM_AUDIT.md`.
 
 ## Milestones
 
-1. Verify the dK'Tronics tone test in Joyce and on real hardware.
-2. Verify CP/M Plus keyboard polling and clean exit.
-3. Probe the screen-memory and roller-RAM setup without leaving the machine
-   in a broken display state.
-4. Implement and benchmark a tiny monochrome sprite blitter.
-5. Audit RD1 game logic, graphics and level data for feasible conversion.
-6. Build a small playable room before attempting a full game.
+1. Verify the dK'Tronics tone test and CP/M keyboard polling in Joyce and on the real PCW.
+2. Probe video-controller state and Roller-RAM safely.
+3. Implement and benchmark a packed monochrome sprite/tile blitter.
+4. Port a small playable RD1 room.
+5. Add scrolling, sound effects and the remaining game logic.
 
 ## References
 
-- https://github.com/zpqrtbnk/xrick
-- https://wiki.retrotechcollection.com/Amstrad_PCW_Hardware_Reference_%28John_Elliott%29
-- https://www.systemed.net/pcw/hardware.html
+- Upstream source: https://github.com/zpqrtbnk/xrick
+- John Elliott, PCW hardware reference: https://www.seasip.info/Unix/Joyce/hardware.pdf
+- PCW video memory notes: https://github.com/Zigazou/amstrad-pcw-technical-info/tree/master/video-memory
