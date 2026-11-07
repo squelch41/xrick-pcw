@@ -55,7 +55,7 @@ It then sets one pixel using an MSB-first mask table. The routine preserves DE a
 
 The test clears the screen, draws a 256-pixel diagonal, a full-width horizontal line at y=128, a full-height vertical line at x=360, and marks the remaining screen corners. It then waits for a key, clears the screen and returns to CP/M.
 
-The diagonal helps verify bit order; the long cross checks the coordinate-to-address calculation; the corner marks exercise the lower/right limits. The test does not modify Roller-RAM. It explicitly sets the F6h vertical-origin register to zero so that Roller-RAM line 0 is displayed at the top.
+The diagonal helps verify bit order; the long cross checks the coordinate-to-address calculation; the corner marks exercise the lower/right limits. The test does not modify Roller-RAM or video-controller registers.
 
 ### Test procedure
 
@@ -65,6 +65,6 @@ The diagonal helps verify bit order; the long cross checks the coordinate-to-add
 
        PCWPIX
 
-4. Expect a diagonal in the upper-left portion of the display, a horizontal line through the middle, a vertical line through the middle, and white pixels at the screen corners. PCWPIX sets the F6h display origin to zero while it runs. Press a key; the screen should clear and CP/M should return.
+4. Expect a diagonal in the upper-left portion of the display, a horizontal line through the middle, a vertical line through the middle, and white pixels at the screen corners. Press a key; the screen should clear and CP/M should return.
 
 **Status:** PCWAYTST, PCWGFXT and PCWGRID have been confirmed by the user to assemble/run in Joyce and exit cleanly. PCWPIX is new and has not yet been assembled or runtime-tested by the user. None of these tests has yet been confirmed on physical PCW 9256 hardware.
