@@ -2,7 +2,7 @@
 ; Pixel-coordinate addressing diagnostic for the Amstrad PCW 9256.
 ;
 ; Uses the normal PCW screen layout: 90 columns x 32 rows of 8x8 cells.
-; 0Each cell occupies eight consecutive bytes, one byte per pixel scanline.
+; Each cell occupies eight consecutive bytes, one byte per pixel scanline.
 ; The byte address for pixel (x,y) is:
 ;   screen_base + (y >> 3)*720 + (x & 0FFF8h) + (y & 7)
 ; screen_base is CPU address 5930h while banks 1 and 2 are mapped at F1/F2.
@@ -10,7 +10,7 @@
 ; PLOT_SET input:
 ;   DE = x coordinate (0..719)
 ;   BC = y coordinate (0..255), with B=0
-; It preserves DE and BC. Pixels are assumed MSB-first within 0each byte;
+; It preserves DE and BC. Pixels are assumed MSB-first within each byte;
 ; the displayed diagonal is intended to confirm this visually.
 ;
 ; Does not alter Roller-RAM or video-controller registers.
