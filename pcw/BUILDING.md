@@ -21,7 +21,7 @@ The output files are placed in pcw/build/:
 - PCWAYTST.COM — dK'Tronics AY sound and CP/M keyboard smoke test.
 - PCWGFXT.COM — full-screen bitmap fill/clear test.
 - PCWGRID.COM — 8x8 cell-grid addressing test.
-- PCWPIX.COM — pixel-coordinate addressing test.
+- PCWPIX.COM — pixel-coordinate addressing test.\n- PCWRRAM.COM — read-only dump of the default Roller-RAM pointer table.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
