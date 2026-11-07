@@ -23,16 +23,19 @@ START:
         ; Screen bitmap is 23040 bytes = 2880 contiguous 8-byte cells.
         ; Begin at bank 1 offset 1930h (visible screen start) mapped at 5930h.
         ; The destination naturally crosses from F1h to F2h at 8000h.
+        LD      HL,00B40h
+        LD      (TILE_COUNT),HL
         LD      DE,05930h
-        LD      IX,00B40h
 
 DRAW_TILES:
         LD      HL,TILE_PATTERN
         LD      BC,00008h
         LDIR
-        DEC     IX
-        LD      A,IXH
-        OR      IXL
+        LD      HL,(TILE_COUNT)
+        DEC     HL
+        LD      (TILE_COUNT),HL
+        LD      A,H
+        OR      L
         JR      NZ,DRAW_TILES
 
         ; Restore CP/M Plus TPA banks before using BDOS.
@@ -56,16 +59,19 @@ WAIT_KEY:
         LD      A,082h
         OUT     (0F2h),A
 
+        LD      HL,00B40h
+        LD      (TILE_COUNT),HL
         LD      DE,05930h
-        LD      IX,00B40h
 
 CLEAR_TILES:
         LD      HL,BLANK_TILE
         LD      BC,00008h
         LDIR
-        DEC     IX
-        LD      A,IXH
-        OR      IXL
+        LD      HL,(TILE_COUNT)
+        DEC     HL
+        LD      (TILE_COUNT),HL
+        LD      A,H
+        OR      L
         JR      NZ,CLEAR_TILES
 
         LD      A,085h
@@ -82,5 +88,9 @@ TILE_PATTERN:
 
 BLANK_TILE:
         DB      00h,00h,00h,00h,00h,00h,00h,00h
+
+; Writable counter in the program's own TPA bank.
+TILE_COUNT:
+        DW      0000h
 
         END
