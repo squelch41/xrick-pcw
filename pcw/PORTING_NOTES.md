@@ -20,7 +20,7 @@ The 720x256 screen is monochrome and can be treated as 90 columns x 32 rows of 8
 
 For normal CP/M Plus mapping on the 256 KB PCW 9256, the smoke tests map physical screen bank 1 into CPU slot F1h and physical bank 2 into slot F2h. The visible bitmap begins at bank 1 offset 1930h and continues into bank 2 offset 0000h, ending at bank 2 offset 332Fh. The default Roller-RAM at bank 2 offset 3600h is left untouched.
 
-The video controller's F6h register selects the first Roller-RAM line shown at the top of the display. Coordinate-based drawing must not assume this origin is zero: the pixel diagnostic explicitly writes zero to F6h before drawing. It leaves the Roller-RAM contents unchanged.
+The F6h register selects the starting Roller-RAM entry shown at the top of the display. Its effect depends on the current Roller-RAM table and must not be changed as a substitute for validating the bitmap address mapping.
 
 For a pixel coordinate (x,y), with x=0..719 and y=0..255, the planned byte offset from the bitmap start is:
 
