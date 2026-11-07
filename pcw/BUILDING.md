@@ -21,6 +21,7 @@ The output files are placed in pcw/build/:
 - PCWAYTST.COM — dK'Tronics AY sound and CP/M keyboard smoke test.
 - PCWGFXT.COM — full-screen bitmap fill/clear test.
 - PCWGRID.COM — 8x8 cell-grid addressing test.
+- PCWPIX.COM — pixel-coordinate addressing test.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -29,34 +30,41 @@ The build script checks the first machine-code bytes of each program and rejects
 
 ## PCWAYTST
 
-Run PCWAYTST under CP/M. It writes a tone configuration to the dK'Tronics AY-3-8912 ports, polls BDOS function 6, then mutes and warm-boots to CP/M. The user has confirmed that it assembles and runs in Joyce and exits cleanly. Joyce does not emulate the dK'Tronics board, so sound output remains untested.
+The user has confirmed that PCWAYTST assembles, runs and exits cleanly in Joyce. It writes a tone configuration to the dK'Tronics AY-3-8912 ports and polls BDOS function 6. Joyce does not emulate the dK'Tronics board, so sound output has not been verified.
 
 ## PCWGFXT
 
-This test is intended for the standard 256 KB PCW CP/M Plus memory layout used by the PCW 9256. It assumes the transient program is running with banks 4, 5, 6 and 7 mapped at F0h, F1h, F2h and F3h respectively.
+The user has confirmed that PCWGFXT displays the full-screen alternating pattern, clears the bitmap and exits cleanly in Joyce.
 
-It temporarily maps screen banks 1 and 2 into the F1h/F2h address slots, writes an alternating bit pattern across the existing screen bitmap, restores the TPA banks 5 and 6, and waits for a key. On keypress it clears the bitmap and warm-boots CP/M.
+It temporarily maps screen banks 1 and 2 into F1h/F2h, writes the existing bitmap area, restores the CP/M Plus TPA banks, and does not modify Roller-RAM or video-controller registers.
 
-The user has confirmed that PCWGFXT runs correctly in Joyce, displays its full-screen pattern, clears the bitmap and exits cleanly.
+## PCWGRID
 
-The test does **not** write to Roller-RAM or change the video-controller registers. It disables interrupts while the screen banks are mapped and restores the normal TPA mapping before calling BDOS.
+The user has confirmed that PCWGRID draws the repeated 8x8 border-and-diagonal cells, clears the bitmap and exits cleanly in Joyce.
 
-## PCWGRID — next graphics test
+The 720x256 screen is organised as 90 columns x 32 rows of 8x8 cells. Each cell is eight consecutive bytes; the video controller fetches successive horizontal character cells at an eight-byte stride.
 
-PCWGRID writes the same distinctive 8-byte tile pattern to all 2,880 8x8 cells in the existing 720x256 bitmap (90 cells across by 32 down). The pattern has a border and a diagonal, so it should reveal whether groups of eight consecutive bytes correspond to 8x8 cells and show the bit order within each byte.
+## PCWPIX — pixel-coordinate test
 
-It uses the same screen-memory range as PCWGFXT: bank 1 offsets 1930h-3FFFh followed by bank 2 offsets 0000h-332Fh. It does not modify Roller-RAM or the video-controller registers. It clears the image after a keypress and returns to CP/M.
+PCWPIX introduces a PLOT_SET routine. The caller supplies x in DE and y in BC (B=0). The routine calculates:
+
+    offset = (y >> 3) * 720 + (x & 0xFFF8) + (y & 7)
+    address = 0x5930 + offset
+
+It then sets one pixel using an MSB-first mask table. The routine preserves DE and BC, and expects the caller to clip coordinates to x=0..719 and y=0..255. It runs while physical screen banks 1 and 2 are mapped into the F1h/F2h CPU slots; the code and stack remain in the other CP/M banks.
+
+The test clears the screen, draws a 256-pixel diagonal, a full-width horizontal line at y=128, a full-height vertical line at x=360, and marks the remaining screen corners. It then waits for a key, clears the screen and returns to CP/M.
+
+The diagonal helps verify bit order; the long cross checks the coordinate-to-address calculation; the corner marks exercise the lower/right limits. The test does not modify Roller-RAM or video-controller registers.
 
 ### Test procedure
 
 1. Use a copy of your Joyce CP/M disk image.
-2. Copy PCWGRID.COM onto it.
+2. Copy PCWPIX.COM onto it.
 3. Boot CP/M and run:
 
-       PCWGRID
+       PCWPIX
 
-4. Expect a full-screen grid of small 8x8 outlined cells with a diagonal detail in each. Press a key; the screen should clear and CP/M should return.
+4. Expect a diagonal in the upper-left portion of the display, a horizontal line through the middle, a vertical line through the middle, and white pixels at the screen corners. Press a key; the screen should clear and CP/M should return.
 
-If the pattern is unexpected or CP/M does not return cleanly, report what appears. Do not test the new program on physical hardware until it has passed in Joyce.
-
-**Status:** PCWAYTST and PCWGFXT have been confirmed by the user to assemble/run in Joyce and exit cleanly. PCWGRID is newly added and has not yet been assembled or runtime-tested by the user. None of these tests has yet been confirmed on the physical PCW 9256.
+**Status:** PCWAYTST, PCWGFXT and PCWGRID have been confirmed by the user to assemble/run in Joyce and exit cleanly. PCWPIX is new and has not yet been assembled or runtime-tested by the user. None of these tests has yet been confirmed on physical PCW 9256 hardware.
