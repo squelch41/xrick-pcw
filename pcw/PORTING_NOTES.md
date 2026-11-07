@@ -12,11 +12,15 @@ John Elliott's PCW hardware reference documents:
 - `ABh`: write selected AY register
 - `A9h`: read selected AY register
 
-AY register 14 is the joystick input/output port. Keep bit 6 of AY register 7 clear when port A is to be read as input. The current `PCWAYTST.ASM` is still an unassembled, untested smoke-test source; it must be built and tried on Joyce and real hardware before being treated as working.
+AY register 14 is the joystick input/output port. Keep bit 6 of AY register 7 clear when port A is to be read as input. `PCWAYTST.ASM` configures channel A and polls the CP/M keyboard. The user has confirmed that it assembles, runs and exits cleanly in Joyce. Joyce does not emulate the dK'Tronics interface, so sound output has not yet been verified.
 
 ## PCW display
 
-The PCW display is 720 x 256 monochrome. Its video controller uses a 256-entry Roller-RAM table. Each scan line is mapped independently and the controller fetches screen bytes at eight-byte intervals. See `UPSTREAM_AUDIT.md` for the proposed first viewport and rendering strategy.
+The PCW display is 720 x 256 monochrome, equivalent to 90 x 32 cells of 8 x 8 pixels. The video controller uses a 256-entry Roller-RAM table; each scan line has its own start address, and screen bytes are fetched at eight-byte intervals. The eight-byte cell storage arrangement is useful for writing 8x8 character/tile patterns contiguously. See the PCW video-memory reference and `UPSTREAM_AUDIT.md`.
+
+The initial screen-memory test maps physical banks 1 and 2 into CPU address slots F1h and F2h, writes the visible bitmap range, restores the TPA mapping and avoids changing Roller-RAM. The user has confirmed that `PCWGFXT.ASM` displays the full-screen alternating pattern and exits cleanly in Joyce.
+
+`PCWGRID.ASM` is the next test: it writes an 8-byte border-and-diagonal pattern into each 8x8 cell. This should validate the cell grouping and pixel bit order. It has not yet been user-tested.
 
 Do not alter Roller-RAM in the game until a separate diagnostic can save and restore the original video state.
 
@@ -32,11 +36,12 @@ The current upstream repository has an `xrick/` directory at its root. Common so
 
 ## Milestones
 
-1. Verify the dK'Tronics tone test and CP/M keyboard polling in Joyce and on the real PCW.
-2. Probe video-controller state and Roller-RAM safely.
-3. Implement and benchmark a packed monochrome sprite/tile blitter.
-4. Port a small playable RD1 room.
-5. Add scrolling, sound effects and the remaining game logic.
+1. Verify sound hardware on the physical PCW; Joyce cannot verify dK'Tronics audio.
+2. Validate 8x8 cell addressing and bit order with `PCWGRID`.
+3. Implement and benchmark clipped 8x8 tile and sprite drawing routines in Z80 assembly.
+4. Decide whether to render directly in native PCW memory or use a compact staging buffer.
+5. Port a minimal playable RD1 room, initially with static map and one controllable Rick sprite.
+6. Add collision, scrolling, sound effects and remaining game logic.
 
 ## References
 
