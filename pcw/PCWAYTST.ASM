@@ -8,8 +8,9 @@
 ;   - Poll CP/M BDOS direct console input until a key is pressed.
 ;   - Mute channel A and return to CP/M.
 ;
-; IMPORTANT: dK'Tronics port addresses are provisional pending verification.
+; dK'Tronics AY-3-8912 ports (per John Elliott's PCW hardware reference):
 ; AAh = AY register select; ABh = AY data write.
+; Runtime behaviour still needs testing on the interface.
 
         ORG     0100h
 
