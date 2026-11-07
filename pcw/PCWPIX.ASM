@@ -19,6 +19,10 @@
 
 START:
         DI
+
+        ; Normalise the display origin: Roller-RAM line 0 is the top line.
+        XOR     A
+        OUT     (0F6h),A
         LD      A,081h
         OUT     (0F1h),A
         LD      A,082h
