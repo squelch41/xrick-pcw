@@ -1,9 +1,9 @@
-# Building the PCW hardware smoke test
+# Building and testing the PCW port
 
 ## Requirements
 
 - Fedora (or another Linux system) with z80asm version 1.8 or compatible.
-- Python 3, used only for a small binary-layout check.
+- Python 3, used only for binary-layout checks.
 
 On Fedora:
 
@@ -18,24 +18,38 @@ From the repository root:
 
 The output files are placed in pcw/build/:
 
-- PCWAYTST.COM — CP/M transient program.
-- PCWAYTST.lst — assembler listing.
-- PCWAYTST.lbl — assembler label file.
+- PCWAYTST.COM — dK'Tronics AY sound and CP/M keyboard smoke test.
+- PCWGFXT.COM — experimental PCW screen-memory smoke test.
+- Matching .lst and .lbl files — assembler listing and labels.
 
-The source uses ORG 0100h. In this assembler, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
+The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
 
-The build script checks that the generated file begins with the expected machine-code bytes for the first two AY register writes. This catches accidental file-offset/prefix problems. It is not an emulator test and does not verify the AY interface.
+The build script checks the first machine-code bytes of each program and rejects implausibly large COM files. This verifies binary layout, not runtime behaviour.
 
-## First runtime test
+## PCWAYTST
 
-1. Make a copy of your Joyce CP/M disk image before adding test files.
-2. Add PCWAYTST.COM to that copied disk image using Joyce's disk-image/file tools, or another CP/M disk utility.
-3. Boot CP/M in Joyce and run:
+Run PCWAYTST under CP/M. It writes a tone configuration to the dK'Tronics AY-3-8912 ports, polls BDOS function 6, then mutes and warm-boots to CP/M. Joyce does not emulate the dK'Tronics board, so silence in Joyce is expected; the keyboard exit path can still be checked.
 
-       PCWAYTST
+## PCWGFXT — experimental
 
-4. The program is intended to produce a steady tone until a key is pressed, then mute the AY and return to CP/M.
+This test is intended for the standard 256 KB PCW CP/M Plus memory layout used by the PCW 9256. It assumes the transient program is running with banks 4, 5, 6 and 7 mapped at F0h, F1h, F2h and F3h respectively.
 
-The dK'Tronics ports in the source are AAh (register select) and ABh (data write), as documented in the PCW hardware reference. An emulator may not emulate the dK'Tronics board, so a silent result in Joyce would not by itself prove that the program is faulty. Keyboard exit/return behaviour can still be tested.
+It temporarily maps screen banks 1 and 2 into the F1h/F2h address slots, writes an alternating bit pattern across the existing screen bitmap, restores the TPA banks 5 and 6, and waits for a key. On keypress it clears the bitmap, restores the TPA map again, and warm-boots CP/M.
 
-Status: the build script has not yet been run in the user's environment; no runtime test is claimed. Test on a copied disk image first, then on the real PCW with the dK'Tronics interface fitted.
+The test does **not** write to Roller-RAM, change the video-controller registers, or use CALL/PUSH/POP while the TPA banks are switched out. It disables interrupts during each bank-switching section and restores the normal TPA mapping before calling BDOS.
+
+### Test procedure
+
+1. Use a copy of your Joyce CP/M disk image.
+2. Copy PCWGFXT.COM onto it.
+3. Boot CP/M and run:
+
+       PCWGFXT
+
+4. You should see a full-screen alternating vertical pattern. Press a key; the program should clear the bitmap and return to CP/M.
+
+The program writes to the display's existing screen-memory areas (bank 1: 1930h-3FFFh; bank 2: 0000h-332Fh). It deliberately leaves the default Roller-RAM at bank 2: 3600h-37FFh untouched.
+
+If the display does not change, or CP/M does not return cleanly, stop testing and report exactly what happened. Do not try it on physical hardware until it behaves correctly in Joyce.
+
+**Status:** PCWAYTST has been reported to assemble and run in Joyce. PCWGFXT is new experimental code and has not yet been assembled or runtime-tested by the user.
