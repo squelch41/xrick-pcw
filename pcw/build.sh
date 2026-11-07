@@ -13,25 +13,23 @@ fi
 
 mkdir -p build
 
-"$Z80ASM" \
-    --list=build/PCWAYTST.lst \
-    --label=build/PCWAYTST.lbl \
-    --output=build/PCWAYTST.COM \
-    PCWAYTST.ASM
+for name in PCWAYTST PCWGFXT PCWGRID; do
+    "$Z80ASM" \
+        --list="build/$name.lst" \
+        --label="build/$name.lbl" \
+        --output="build/$name.COM" \
+        "$name.ASM"
+done
 
-"$Z80ASM" \
-    --list=build/PCWGFXT.lst \
-    --label=build/PCWGFXT.lbl \
-    --output=build/PCWGFXT.COM \
-    PCWGFXT.ASM
-
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM <<'PY'
 from pathlib import Path
 import sys
 
 checks = {
     "PCWAYTST.COM": bytes((0x3E, 0x00, 0xD3, 0xAA, 0x3E, 0xF4, 0xD3, 0xAB)),
     "PCWGFXT.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
+    "PCWGRID.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2,
+                         0x11, 0x30, 0x59, 0xDD, 0x21, 0x40, 0x0B)),
 }
 
 for filename in sys.argv[1:]:
