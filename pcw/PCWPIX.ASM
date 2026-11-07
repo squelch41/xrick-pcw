@@ -2,7 +2,7 @@
 ; Pixel-coordinate addressing diagnostic for the Amstrad PCW 9256.
 ;
 ; Uses the normal PCW screen layout: 90 columns x 32 rows of 8x8 cells.
-; Each cell occupies eight consecutive bytes, one byte per pixel scanline.
+; 0Each cell occupies eight consecutive bytes, one byte per pixel scanline.
 ; The byte address for pixel (x,y) is:
 ;   screen_base + (y >> 3)*720 + (x & 0FFF8h) + (y & 7)
 ; screen_base is CPU address 5930h while banks 1 and 2 are mapped at F1/F2.
@@ -10,7 +10,7 @@
 ; PLOT_SET input:
 ;   DE = x coordinate (0..719)
 ;   BC = y coordinate (0..255), with B=0
-; It preserves DE and BC. Pixels are assumed MSB-first within each byte;
+; It preserves DE and BC. Pixels are assumed MSB-first within 0each byte;
 ; the displayed diagonal is intended to confirm this visually.
 ;
 ; Does not alter Roller-RAM or video-controller registers.
@@ -187,14 +187,14 @@ PLOT_SET:
 
 ; Row-base offsets: n * 720 for n=0..31, little-endian.
 ROW_OFFSETS:
-        DB      00h,00h, D0h,02h, A0h,05h, 70h,08h
-        DB      40h,0Bh, 10h,0Eh, E0h,10h, B0h,13h
-        DB      80h,16h, 50h,19h, 20h,1Ch, F0h,1Eh
-        DB      C0h,21h, 90h,24h, 60h,27h, 30h,2Ah
-        DB      00h,2Dh, D0h,2Fh, A0h,32h, 70h,35h
-        DB      40h,38h, 10h,3Bh, E0h,3Dh, B0h,40h
-        DB      80h,43h, 50h,46h, 20h,49h, F0h,4Bh
-        DB      C0h,4Eh, 90h,51h, 60h,54h, 30h,57h
+        DB      00h,00h, 0D0h,02h, 0A0h,05h, 70h,08h
+        DB      40h,0Bh, 10h,0Eh, 0E0h,10h, 0B0h,13h
+        DB      80h,16h, 50h,19h, 20h,1Ch, 0F0h,1Eh
+        DB      0C0h,21h, 90h,24h, 60h,27h, 30h,2Ah
+        DB      00h,2Dh, 0D0h,2Fh, 0A0h,32h, 70h,35h
+        DB      40h,38h, 10h,3Bh, 0E0h,3Dh, 0B0h,40h
+        DB      80h,43h, 50h,46h, 20h,49h, 0F0h,4Bh
+        DB      0C0h,4Eh, 90h,51h, 60h,54h, 30h,57h
 
 PIXEL_MASKS:
         DB      080h,040h,020h,010h,008h,004h,002h,001h
