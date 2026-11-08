@@ -53,7 +53,7 @@ For a pixel coordinate (x,y), with x=0..719 and y=0..255:
 3. Access the corresponding physical bank and calculate offset + (x & 0FFF8h).
 4. Set or clear the bit selected by x & 7, after confirming the PCW's left-to-right bit order.
 
-Do not use the old fixed-base assumption in `PCWPIX.ASM`; its pixel test needs to be rewritten to use the Roller-RAM entry for each scanline. Mapping physical bank 1 into CPU slot F1h and bank 2 into F2h is useful for the standard screen allocation, but code must still select the appropriate slot/bank for each decoded pointer.
+`PCWPIX.ASM` has now been rewritten to look up and decode the Roller-RAM entry for every scanline. It maps physical bank 1 into CPU slot F1h and bank 2 into F2h, then selects the matching CPU address window for each pointer. This implementation is committed but still needs to be assembled and visually checked in Joyce; in particular, the pixel bit order and the table's runtime location should be confirmed.
 
 ## CPU and memory
 
