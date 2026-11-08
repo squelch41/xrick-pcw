@@ -1,41 +1,38 @@
 ; PCWPIX.ASM
 ; Pixel-coordinate addressing diagnostic for the Amstrad PCW 9256.
 ;
-; Uses the normal PCW screen layout: 90 columns x 32 rows of 8x8 cells.
-; Each cell occupies eight consecutive bytes, one byte per pixel scanline.
-; The byte address for pixel (x,y) is:
-;   screen_base + (y >> 3)*720 + (x & 0FFF8h) + (y & 7)
-; screen_base is CPU address 5930h while banks 1 and 2 are mapped at F1/F2.
+; Uses the active 256-entry Roller-RAM table at bank 2 offset 3600h
+; (CPU address B600h while bank 2 is mapped in slot F2h).
+; Each entry is a little-endian 16-bit pointer:
+;   bank   = (word >> 13) & 7
+;   offset = (word & 7) + 2 * (word & 1FF8h)
+;
+; The standard 9256 screen uses physical banks 1 and 2. They are mapped
+; simultaneously into CPU slots F1h and F2h. A decoded pointer in bank 1
+; is accessed at 4000h+offset; a pointer in bank 2 at 8000h+offset.
+; Each scanline contains 90 bytes at eight-byte address intervals.
 ;
 ; PLOT_SET input:
 ;   DE = x coordinate (0..719)
 ;   BC = y coordinate (0..255), with B=0
-; It preserves DE and BC. Pixels are assumed MSB-first within each byte;
-; the displayed diagonal is intended to confirm this visually.
+; Preserves DE and BC. Pixel masks are MSB-first; the test pattern checks
+; this visually after the scanline address calculation is correct.
 ;
-; Does not alter Roller-RAM or video-controller registers.
+; The clear routine also follows Roller-RAM, clearing the 90 visible
+; bytes on each of the 256 scanlines rather than clearing a guessed range.
 
         ORG     0100h
 
 START:
         DI
 
+        ; Map physical screen banks 1 and 2 into CPU slots F1 and F2.
         LD      A,081h
         OUT     (0F1h),A
         LD      A,082h
         OUT     (0F2h),A
 
-        ; Clear the 23,040-byte visible bitmap.
-        LD      HL,05930h
-        LD      BC,05A00h
-        LD      D,00h
-CLEAR_SCREEN:
-        LD      (HL),D
-        INC     HL
-        DEC     BC
-        LD      A,B
-        OR      C
-        JR      NZ,CLEAR_SCREEN
+        CALL    CLEAR_SCREEN
 
         ; Diagonal from (0,0) through (255,255).
         LD      DE,0000h
@@ -80,7 +77,7 @@ VERTICAL:
         LD      BC,00FFh
         CALL    PLOT_SET
 
-        ; Restore the CP/M Plus TPA banks before using BDOS.
+        ; Restore the normal CP/M Plus F1/F2 mapping before BDOS.
         LD      A,085h
         OUT     (0F1h),A
         LD      A,086h
@@ -94,23 +91,13 @@ WAIT_KEY:
         OR      A
         JR      Z,WAIT_KEY
 
-        ; Clear the bitmap again.
+        ; Clear the bitmap again using the same Roller-RAM addressing.
         DI
         LD      A,081h
         OUT     (0F1h),A
         LD      A,082h
         OUT     (0F2h),A
-
-        LD      HL,05930h
-        LD      BC,05A00h
-        LD      D,00h
-CLEAR_EXIT:
-        LD      (HL),D
-        INC     HL
-        DEC     BC
-        LD      A,B
-        OR      C
-        JR      NZ,CLEAR_EXIT
+        CALL    CLEAR_SCREEN
 
         LD      A,085h
         OUT     (0F1h),A
@@ -119,63 +106,127 @@ CLEAR_EXIT:
         EI
         JP      0000h
 
-; Set one pixel. Caller clips coordinates to x=0..719, y=0..255.
-; Stack use is safe: F3 remains the normal TPA bank while F1/F2
-; temporarily expose the video banks.
-PLOT_SET:
-        PUSH    DE
-        PUSH    BC
-
-        ; Save x modulo 8 for the pixel mask.
-        LD      A,E
-        AND     07h
-        LD      (PIX_MASK),A
-
-        ; Horizontal byte offset = x & 0FFF8h.
-        LD      A,E
-        AND     0F8h
-        LD      L,A
-        LD      H,D
-        PUSH    HL
-
-        ; Look up (y >> 3) * 720.
+; Clear 90 visible bytes on each scanline. The controller's byte
+; addresses are separated by eight, so advance HL by eight each time.
+CLEAR_SCREEN:
+        LD      C,00h
+CLEAR_LINE:
         LD      A,C
-        AND     0F8h
-        RRCA
-        RRCA
-        RRCA
-        ADD     A,A
-        LD      E,A
-        LD      D,00h
-        LD      HL,ROW_OFFSETS
+        CALL    GET_SCANLINE_PTR
+        LD      B,90
+        LD      DE,0008h
+CLEAR_BYTE:
+        LD      (HL),00h
         ADD     HL,DE
+        DJNZ    CLEAR_BYTE
+        INC     C
+        JR      NZ,CLEAR_LINE
+        RET
+
+; Return the CPU address of the first visible byte for scanline A.
+; Only physical banks 1 and 2 are expected in the standard 9256 table.
+; Preserves DE and BC; returns HL as 4000h+offset or 8000h+offset.
+GET_SCANLINE_PTR:
+        PUSH    DE
+
+        ; Roller-RAM word address = B600h + 2*y.
+        LD      L,A
+        LD      H,00h
+        ADD     HL,HL
+        LD      DE,0B600h
+        ADD     HL,DE
+
+        ; Read the little-endian word.
         LD      E,(HL)
         INC     HL
         LD      D,(HL)
 
-        POP     HL
-        ADD     HL,DE
+        ; Save physical bank number (word bits 15..13).
+        LD      A,D
+        AND     0E0h
+        SRL     A
+        SRL     A
+        SRL     A
+        SRL     A
+        SRL     A
+        LD      (BANK_NO),A
 
-        ; Add scanline within the 8-line character cell.
-        LD      A,C
+        ; Decode offset = (word & 7) + 2 * (word & 1FF8h).
+        LD      A,E
         AND     07h
+        LD      (LOW_BITS),A
+
+        LD      A,D
+        AND     01Fh
+        LD      H,A
+        LD      L,E
+        LD      A,L
+        AND     0F8h
+        LD      L,A
+        SLA     L
+        RL      H
+
+        LD      A,(LOW_BITS)
         LD      E,A
         LD      D,00h
         ADD     HL,DE
 
-        ; Convert screen-relative offset to mapped CPU address.
-        LD      DE,05930h
+        ; Select the CPU slot into which that physical bank is mapped.
+        LD      A,(BANK_NO)
+        CP      01h
+        JR      Z,POINTER_BANK1
+        CP      02h
+        JR      Z,POINTER_BANK2
+
+        ; Unexpected bank: return zero rather than write to arbitrary RAM.
+        LD      HL,0000h
+        POP     DE
+        RET
+
+POINTER_BANK1:
+        LD      DE,04000h
+        ADD     HL,DE
+        POP     DE
+        RET
+
+POINTER_BANK2:
+        LD      DE,08000h
+        ADD     HL,DE
+        POP     DE
+        RET
+
+; Set one pixel. Caller supplies valid screen coordinates.
+PLOT_SET:
+        PUSH    DE
+        PUSH    BC
+
+        ; Save x modulo eight for the pixel mask.
+        LD      A,E
+        AND     07h
+        LD      (PIX_MASK),A
+
+        ; Get the first visible byte of this exact scanline.
+        LD      A,C
+        CALL    GET_SCANLINE_PTR
+
+        ; Add x rounded down to the containing eight-pixel byte.
+        PUSH    HL
+        LD      H,D
+        LD      L,E
+        LD      A,L
+        AND     0F8h
+        LD      L,A
+        POP     DE
         ADD     HL,DE
         PUSH    HL
 
-        ; Fetch mask: bit 7 is the leftmost pixel, bit 0 the rightmost.
+        ; Fetch mask: bit 7 is leftmost, bit 0 is rightmost.
         LD      A,(PIX_MASK)
         LD      E,A
         LD      D,00h
         LD      HL,PIXEL_MASKS
         ADD     HL,DE
-        LD      A,(HL)
-        LD      B,A
+        LD      B,(HL)
 
         POP     HL
         LD      A,(HL)
@@ -186,20 +237,13 @@ PLOT_SET:
         POP     DE
         RET
 
-; Row-base offsets: n * 720 for n=0..31, little-endian.
-ROW_OFFSETS:
-        DB      00h,00h, 0D0h,02h, 0A0h,05h, 70h,08h
-        DB      40h,0Bh, 10h,0Eh, 0E0h,10h, 0B0h,13h
-        DB      80h,16h, 50h,19h, 20h,1Ch, 0F0h,1Eh
-        DB      0C0h,21h, 90h,24h, 60h,27h, 30h,2Ah
-        DB      00h,2Dh, 0D0h,2Fh, 0A0h,32h, 70h,35h
-        DB      40h,38h, 10h,3Bh, 0E0h,3Dh, 0B0h,40h
-        DB      80h,43h, 50h,46h, 20h,49h, 0F0h,4Bh
-        DB      0C0h,4Eh, 90h,51h, 60h,54h, 30h,57h
-
 PIXEL_MASKS:
         DB      080h,040h,020h,010h,008h,004h,002h,001h
 
+BANK_NO:
+        DB      00h
+LOW_BITS:
+        DB      00h
 PIX_MASK:
         DB      00h
 
