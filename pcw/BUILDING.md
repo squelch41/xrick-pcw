@@ -72,7 +72,7 @@ The diagonal helps verify bit order; the long cross checks the coordinate-to-add
 
 ## PCWDECO — Roller-RAM export
 
-Run `PCWDECO` in Joyce. It creates or replaces `RRAM.TXT` on the currently logged-in CP/M drive and returns to CP/M. The file contains all 256 decoded Roller-RAM entries, 16 per line, in fixed-width `BB:OOOO` format (physical 16 KB block and decoded byte offset).
+Run `PCWDECO` in Joyce. It creates or replaces `RRAM.TXT` on the currently logged-in CP/M drive and returns to CP/M. The file contains all 256 raw 16-bit Roller-RAM words, 16 per line, printed high byte first as four hexadecimal digits followed by a space. This deliberately preserves the original values without assuming a pointer-decoding formula.
 
 The program uses CP/M sequential file operations and writes complete 128-byte records. The unused end of each record is padded with spaces, so the file remains readable as ordinary text. Copy `RRAM.TXT` from the CP/M disk image to the host and paste its contents into the chat.
 
