@@ -1,13 +1,10 @@
 ; PCWDECO.ASM
-; Write the decoded 256-entry Roller-RAM table to RRAM.TXT.
+; Export the raw 256-entry Roller-RAM table to RRAM.TXT.
 ;
-; Each text line contains 16 fixed-width entries, each formatted BB:OOOO
-; (physical 16K block : decoded byte offset). The program writes one
-; 128-byte CP/M sequential record per line, with spaces after the CR/LF.
-;
-; Roller-RAM word format:
-;   block  = word >> 13
-;   offset = (word & 7) + 2 * (word & 1FF8h)
+; Each text line contains 16 raw 16-bit entries, printed high byte first
+; as four hexadecimal digits followed by a space. This preserves the
+; exact table contents without assuming a particular pointer decode.
+; One 128-byte CP/M sequential record is written per line.
 ;
 ; Reads the default table at physical bank 2, offset 3600h. Does not
 ; write to Roller-RAM, screen memory, or video-controller registers.
@@ -65,7 +62,7 @@ FILL_RECORD:
         LD      HL,FILE_BUFFER
         LD      (OUTPUT_PTR),HL
 
-        ; Sixteen entries per text line: 16 * 7 = 112 characters.
+        ; Sixteen raw words per line, high byte first.
         LD      B,16
 WRITE_ENTRY:
         LD      HL,(SOURCE_PTR)
@@ -75,43 +72,12 @@ WRITE_ENTRY:
         INC     HL
         LD      (SOURCE_PTR),HL
 
-        ; Physical 16K block number = bits 15..13.
         LD      A,D
-        AND     0E0h
-        SRL     A
-        SRL     A
-        SRL     A
-        SRL     A
-        SRL     A
         CALL    WRITE_HEX_BYTE
-
-        LD      A,3Ah
-        CALL    WRITE_CHAR
-
-        ; Decoded offset = 2 * (word & 1FF8h) + (word & 7).
         LD      A,E
-        AND     07h
-        LD      (LOW_BITS),A
-
-        LD      A,D
-        AND     01Fh
-        LD      H,A
-        LD      L,E
-        LD      A,L
-        AND     0F8h
-        LD      L,A
-        SLA     L
-        RL      H
-
-        LD      A,(LOW_BITS)
-        LD      E,A
-        LD      D,00h
-        ADD     HL,DE
-
-        LD      A,H
         CALL    WRITE_HEX_BYTE
-        LD      A,L
-        CALL    WRITE_HEX_BYTE
+        LD      A,20h
+        CALL    WRITE_CHAR
 
         DJNZ    WRITE_ENTRY
 
@@ -193,8 +159,6 @@ SOURCE_PTR:
         DW      0000h
 OUTPUT_PTR:
         DW      0000h
-LOW_BITS:
-        DB      00h
 
 DONE_MESSAGE:
         DB      'RRAM.TXT written to the current drive.$'
