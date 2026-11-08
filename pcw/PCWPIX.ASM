@@ -77,6 +77,47 @@ VERTICAL:
         LD      BC,00FFh
         CALL    PLOT_SET
 
+        ; Filled rectangle: x=80..199, y=40..99.
+        LD      C,40
+RECT_ROW:
+        LD      DE,80
+        LD      B,120
+RECT_COL:
+        CALL    PLOT_SET
+        INC     DE
+        DJNZ    RECT_COL
+        INC     C
+        LD      A,C
+        CP      100
+        JR      NZ,RECT_ROW
+
+        ; Clear a smaller rectangle inside it: x=112..151, y=60..79.
+        LD      C,60
+HOLE_ROW:
+        LD      DE,112
+        LD      B,40
+HOLE_COL:
+        CALL    PLOT_CLEAR
+        INC     DE
+        DJNZ    HOLE_COL
+        INC     C
+        LD      A,C
+        CP      80
+        JR      NZ,HOLE_ROW
+
+        ; Filled patch at the lower-right edge. This exercises the last
+        ; valid x and y coordinates (x=680..719, y=230..255).
+        LD      C,230
+EDGE_ROW:
+        LD      DE,680
+        LD      B,40
+EDGE_COL:
+        CALL    PLOT_SET
+        INC     DE
+        DJNZ    EDGE_COL
+        INC     C
+        JR      NZ,EDGE_ROW
+
         ; Restore the normal CP/M Plus F1/F2 mapping before BDOS.
         LD      A,085h
         OUT     (0F1h),A
@@ -195,8 +236,17 @@ POINTER_BANK2:
         POP     DE
         RET
 
-; Set one pixel. Caller supplies valid screen coordinates.
+; Set or clear one pixel. Caller supplies valid screen coordinates.
 PLOT_SET:
+        LD      A,01h
+        LD      (PIX_MODE),A
+        JR      PLOT_PIXEL
+
+PLOT_CLEAR:
+        XOR     A
+        LD      (PIX_MODE),A
+
+PLOT_PIXEL:
         PUSH    DE
         PUSH    BC
 
@@ -229,8 +279,21 @@ PLOT_SET:
         LD      B,(HL)
 
         POP     HL
+        LD      A,(PIX_MODE)
+        OR      A
+        JR      Z,PIXEL_DO_CLEAR
         LD      A,(HL)
         OR      B
+        JR      PIXEL_STORE
+
+PIXEL_DO_CLEAR:
+        LD      A,B
+        CPL
+        LD      B,A
+        LD      A,(HL)
+        AND     B
+
+PIXEL_STORE:
         LD      (HL),A
 
         POP     BC
@@ -245,6 +308,8 @@ BANK_NO:
 LOW_BITS:
         DB      00h
 PIX_MASK:
+        DB      00h
+PIX_MODE:
         DB      00h
 
         END
