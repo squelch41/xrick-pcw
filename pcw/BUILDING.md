@@ -25,6 +25,7 @@ The output files are placed in pcw/build/:
 - PCWRRAM.COM — read-only dump of the default Roller-RAM pointer table.
 - PCWDECO.COM — exports the raw Roller-RAM table to RRAM.TXT.
 - PCWBLIT.COM — Roller-RAM-based, byte-aligned 8x8 tile blitter test.
+- PCWTRANS.COM — transparent 8x8 masked-sprite test.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -85,3 +86,14 @@ Run `PCWBLIT` in Joyce. It clears the display and draws several opaque 8x8 patte
 The test includes diamond, outline, cross, checkerboard and diagonal patterns. It also draws an 8x8 tile at x=712, y=248, the bottom-right valid tile origin. Press a key to clear the screen and return to CP/M.
 
 This first blitter is intentionally limited to opaque tiles aligned on an eight-pixel boundary. It is not yet a general transparent or arbitrarily positioned sprite renderer. The build check verifies the COM file's initial machine-code layout, not its runtime behaviour.
+
+
+## PCWTRANS — transparent 8x8 sprite test
+
+Run `PCWTRANS` in Joyce. It clears the display, draws a checkerboard tile, then overlays two masked sprites. The mask convention is 1 = preserve the existing destination pixel and 0 = replace it with the corresponding pixel from the sprite. Each output byte is calculated as:
+
+    destination = (destination AND mask) OR pixels
+
+The routine uses the same Roller-RAM lookup as the opaque blitter, so each sprite row is written through the correct physical screen bank. Coordinates remain byte-aligned and the test uses complete 8x8 tiles. Press a key to clear the display and return to CP/M.
+
+The build script checks the COM header and file size; it does not verify runtime behaviour. This diagnostic has not yet been assembled or tested by the user, and has not been tested on physical PCW hardware.
