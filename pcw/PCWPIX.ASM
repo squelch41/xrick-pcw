@@ -105,16 +105,24 @@ HOLE_COL:
         CP      80
         JR      NZ,HOLE_ROW
 
-        ; Filled patch at the lower-right edge. This exercises the last
-        ; valid x and y coordinates (x=680..719, y=230..255).
+        ; Clipped rectangle: requested x=680..759, y=230..269.
+        ; Stop at x=720 and y=256, so no off-screen address is touched.
         LD      C,230
 EDGE_ROW:
         LD      DE,680
-        LD      B,40
+        LD      B,80
 EDGE_COL:
+        LD      A,D
+        CP      02h
+        JR      NZ,EDGE_PLOT
+        LD      A,E
+        CP      0D0h
+        JR      Z,EDGE_NEXT_ROW
+EDGE_PLOT:
         CALL    PLOT_SET
         INC     DE
         DJNZ    EDGE_COL
+EDGE_NEXT_ROW:
         INC     C
         JR      NZ,EDGE_ROW
 
