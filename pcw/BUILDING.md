@@ -48,7 +48,7 @@ The 720x256 screen is organised as 90 columns x 32 rows of 8x8 cells. Each cell 
 
 PCWPIX introduces a PLOT_SET routine. The caller supplies x in DE and y in BC (B=0). For every pixel, it reads the corresponding 16-bit Roller-RAM entry at B600h+2*y, decodes its physical bank and byte offset, and adds the horizontal byte offset (x & 0FFF8h). Physical bank 1 is mapped into F1h and bank 2 into F2h, so the decoded pointer is accessed through the matching CPU address window. The routine sets one pixel using an MSB-first mask table and preserves DE and BC. The caller must clip coordinates to x=0..719 and y=0..255.
 
-The clear routine also follows the Roller-RAM pointers, clearing the 90 visible bytes of each scanline at eight-byte address intervals. It does not assume that the bitmap occupies one contiguous CPU address range.
+The clear routine also follows the Roller-RAM pointers, clearing the 90 visible bytes of each scanline at eight-byte address intervals. It does not assume that the bitmap occupies one contiguous CPU address range. The test draws a filled rectangle, clears a smaller rectangle inside it, and draws a rectangle whose requested bounds extend beyond the right and bottom edges; the test loop clips those bounds to x=719 and y=255.
 
 The test clears the screen, draws a 256-pixel diagonal, a full-width horizontal line at y=128, a full-height vertical line at x=360, and marks the remaining screen corners. It then waits for a key, clears the screen and returns to CP/M.
 
