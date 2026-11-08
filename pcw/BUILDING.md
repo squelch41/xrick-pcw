@@ -70,15 +70,11 @@ The diagonal helps verify bit order; the long cross checks the coordinate-to-add
 **Status:** PCWAYTST, PCWGFXT and PCWGRID have been confirmed by the user to assemble/run in Joyce and exit cleanly. PCWPIX is new and has not yet been assembled or runtime-tested by the user. None of these tests has yet been confirmed on physical PCW 9256 hardware.
 
 
-## PCWDECO — decoded Roller-RAM diagnostic
+## PCWDECO — Roller-RAM export
 
-Run `PCWDECO` in Joyce. It reads the same default 512-byte Roller-RAM table as PCWRRAM, but decodes each 16-bit entry and prints 256 values in the form:
+Run `PCWDECO` in Joyce. It creates or replaces `RRAM.TXT` on the currently logged-in CP/M drive and returns to CP/M. The file contains all 256 decoded Roller-RAM entries, 16 per line, in fixed-width `BB:OOOO` format (physical 16 KB block and decoded byte offset).
 
-    01:3550 01:3551 ...
+The program uses CP/M sequential file operations and writes complete 128-byte records. The unused end of each record is padded with spaces, so the file remains readable as ordinary text. Copy `RRAM.TXT` from the CP/M disk image to the host and paste its contents into the chat.
 
-The first field is the physical 16 KB memory block. The second is the decoded byte offset within that block. The decode is:
+The program snapshots the table before restoring the normal CP/M Plus bank mapping. It does not modify Roller-RAM, screen memory, or video-controller registers. If file creation or writing fails, it displays an error message; check that the disk is not write-protected and has free directory entries and space.
 
-    block = word >> 13
-    offset = (word & 7) + 2 * (word & 0x1FF8)
-
-The program only reads the table and prints the results; it does not alter Roller-RAM, screen memory, or video-controller registers. The decoded list is needed before replacing PCWPIX's fixed-base calculation with per-scanline Roller-RAM addressing.
