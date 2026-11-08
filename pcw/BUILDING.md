@@ -68,3 +68,17 @@ The diagonal helps verify bit order; the long cross checks the coordinate-to-add
 4. Expect a diagonal in the upper-left portion of the display, a horizontal line through the middle, a vertical line through the middle, and white pixels at the screen corners. Press a key; the screen should clear and CP/M should return.
 
 **Status:** PCWAYTST, PCWGFXT and PCWGRID have been confirmed by the user to assemble/run in Joyce and exit cleanly. PCWPIX is new and has not yet been assembled or runtime-tested by the user. None of these tests has yet been confirmed on physical PCW 9256 hardware.
+
+
+## PCWDECO — decoded Roller-RAM diagnostic
+
+Run `PCWDECO` in Joyce. It reads the same default 512-byte Roller-RAM table as PCWRRAM, but decodes each 16-bit entry and prints 256 values in the form:
+
+    01:3550 01:3551 ...
+
+The first field is the physical 16 KB memory block. The second is the decoded byte offset within that block. The decode is:
+
+    block = word >> 13
+    offset = (word & 7) + 2 * (word & 0x1FF8)
+
+The program only reads the table and prints the results; it does not alter Roller-RAM, screen memory, or video-controller registers. The decoded list is needed before replacing PCWPIX's fixed-base calculation with per-scanline Roller-RAM addressing.
