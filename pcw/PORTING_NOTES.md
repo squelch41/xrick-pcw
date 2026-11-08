@@ -43,7 +43,7 @@ The current upstream repository has an `xrick/` directory at its root. Common so
 ## Milestones
 
 1. Verify sound hardware on the physical PCW; Joyce cannot verify dK'Tronics audio.
-2. Confirm pixel addressing and bit order with `PCWPIX`.
+2. Decode the active Roller-RAM table with `PCWDECO`, then verify per-scanline pixel addressing and bit order.
 3. Implement and benchmark clipped 8x8 tile and sprite drawing routines in Z80 assembly.
 4. Decide how to scale/convert the source game's 320x200 image to the PCW's 720x256 display.
 5. Port a minimal playable RD1 room, initially with static map and one controllable Rick sprite.
