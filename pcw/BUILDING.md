@@ -24,6 +24,7 @@ The output files are placed in pcw/build/:
 - PCWPIX.COM — Roller-RAM pixel, filled-rectangle, clearing and edge-clipping test.
 - PCWRRAM.COM — read-only dump of the default Roller-RAM pointer table.
 - PCWDECO.COM — exports the raw Roller-RAM table to RRAM.TXT.
+- PCWBLIT.COM — Roller-RAM-based, byte-aligned 8x8 tile blitter test.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -77,3 +78,10 @@ The program uses CP/M sequential file operations and writes complete 128-byte re
 
 The program snapshots the table before restoring the normal CP/M Plus bank mapping. It does not modify Roller-RAM, screen memory, or video-controller registers. If file creation or writing fails, it displays an error message; check that the disk is not write-protected and has free directory entries and space.
 
+## PCWBLIT — 8x8 tile blitter test
+
+Run `PCWBLIT` in Joyce. It clears the display and draws several opaque 8x8 patterns using `DRAW_TILE`. The routine accepts a pointer to eight source bytes, an x coordinate aligned to eight pixels, and a y coordinate. For each of the eight output rows it looks up and decodes that scanline's Roller-RAM entry, then writes one byte at the appropriate horizontal cell address.
+
+The test includes diamond, outline, cross, checkerboard and diagonal patterns. It also draws an 8x8 tile at x=712, y=248, the bottom-right valid tile origin. Press a key to clear the screen and return to CP/M.
+
+This first blitter is intentionally limited to opaque tiles aligned on an eight-pixel boundary. It is not yet a general transparent or arbitrarily positioned sprite renderer. The build check verifies the COM file's initial machine-code layout, not its runtime behaviour.
