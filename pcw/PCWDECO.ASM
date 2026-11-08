@@ -81,10 +81,14 @@ WRITE_ENTRY:
 
         DJNZ    WRITE_ENTRY
 
-        LD      A,0Dh
-        CALL    WRITE_CHAR
-        LD      A,0Ah
-        CALL    WRITE_CHAR
+        ; Put CR/LF at the end of the record. Remaining padding is before
+        ; the line ending, so the next text line starts in column one.
+        LD      HL,FILE_BUFFER
+        LD      DE,007Eh
+        ADD     HL,DE
+        LD      (HL),0Dh
+        INC     HL
+        LD      (HL),0Ah
 
         ; Write the complete 128-byte record.
         PUSH    BC
