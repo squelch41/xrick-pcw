@@ -233,17 +233,15 @@ SPRITE_ROW_START:
 
         ; Left destination byte: shift source right by alignment.
         LD      A,(ALIGNMENT)
-        LD      B,A
-        LD      A,(SOURCE_MASK)
-        OR      B
-        JR      Z,LEFT_MASK_SHIFTED
+        OR      A
+        JR      Z,LEFT_MASK_NO_SHIFT
         LD      B,A
         LD      A,(SOURCE_MASK)
 LEFT_MASK_SHIFT_LOOP:
         SRL     A
         DJNZ    LEFT_MASK_SHIFT_LOOP
         JR      LEFT_MASK_SHIFTED
-LEFT_MASK_ZERO:
+LEFT_MASK_NO_SHIFT:
         LD      A,(SOURCE_MASK)
 LEFT_MASK_SHIFTED:
         LD      (LEFT_MASK),A
@@ -260,17 +258,15 @@ LEFT_MASK_SHIFTED:
         LD      (LEFT_MASK),A
 
         LD      A,(ALIGNMENT)
-        LD      B,A
-        LD      A,(ALIGNMENT)
         OR      A
-        JR      Z,LEFT_PIXELS_SHIFTED
+        JR      Z,LEFT_PIXELS_NO_SHIFT
         LD      B,A
         LD      A,(SOURCE_PIXELS)
 LEFT_PIXELS_SHIFT_LOOP:
         SRL     A
         DJNZ    LEFT_PIXELS_SHIFT_LOOP
         JR      LEFT_PIXELS_SHIFTED
-LEFT_PIXELS_ZERO:
+LEFT_PIXELS_NO_SHIFT:
         LD      A,(SOURCE_PIXELS)
 LEFT_PIXELS_SHIFTED:
         LD      (LEFT_PIXELS),A
