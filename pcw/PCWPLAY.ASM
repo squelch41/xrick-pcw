@@ -209,7 +209,7 @@ DRAW_PLAYER:
         CALL    RESTORE_TPA
         LD      HL,(PLAYER_SPRITE_PTR)
         LD      DE,PLAYER_BUFFER
-        LD      BC,0672
+        LD      BC,672
         LDIR
 
         ; Screen x = ceil(original_x * 720 / 256).
