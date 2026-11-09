@@ -18,8 +18,8 @@ this is not yet a playable Rick Dangerous port.
 ## Files
 
 - `PCWAYTST.ASM` — minimal CP/M transient-program sound test.
-- `PCWROOM.ASM` — static first-room render using converted original tiles and Rick sprite data.
-- `tools/convert_pc_room.py` — expands the original map blocks and converts the PC tile bank.
+- `PCWROOM.ASM` — full-screen first-room render using the original map, tiles and Rick sprite.
+- `tools/convert_pc_room.py` — expands the original map, converts the PC tiles and composites Rick into a full-screen image.
 - `PORTING_NOTES.md` — initial source audit and proposed architecture.
 
 ## Sound-test status
