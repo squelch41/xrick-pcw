@@ -13,7 +13,7 @@ fi
 
 mkdir -p build
 
-for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB; do
+for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP; do
     "$Z80ASM" \
         --list="build/$name.lst" \
         --label="build/$name.lbl" \
@@ -21,7 +21,7 @@ for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCW
         "$name.ASM"
 done
 
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM <<'PY'
 from pathlib import Path
 import sys
 
@@ -38,6 +38,7 @@ checks = {
     "PCWBLIT.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWTRANS.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWSUB.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
+    "PCWBMP.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
 }
 
 for filename in sys.argv[1:]:
