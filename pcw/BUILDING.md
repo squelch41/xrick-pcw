@@ -27,6 +27,7 @@ The output files are placed in pcw/build/:
 - PCWBLIT.COM — Roller-RAM-based, byte-aligned 8x8 tile blitter test.
 - PCWTRANS.COM — byte-aligned transparent 8x8 masked-sprite test.
 - PCWSUB.COM — arbitrary-pixel-position transparent 8x8 sprite test.
+- PCWBMP.COM — variable-size transparent bitmap test.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
