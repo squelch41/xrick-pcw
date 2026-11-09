@@ -270,8 +270,12 @@ def main() -> int:
         return 2
 
     white = sum(screen)
+    description = (
+        "without Rick" if args.background_only
+        else f"with Rick sprite {SPRITE_ID:#04x}"
+    )
     print(
-        f"Rendered original map 0 and Rick sprite {SPRITE_ID:#04x}: "
+        f"Rendered original map 0 {description}: "
         f"{SCREEN_WIDTH}x{SCREEN_HEIGHT}, {len(screen)} screen bytes -> {args.output}"
     )
     return 0
