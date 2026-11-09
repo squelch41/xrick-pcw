@@ -115,7 +115,7 @@ def generate_include(pairs: list[tuple[int, int]]) -> str:
         rows = scaled_frame(pairs, sprite_id)
         for row in rows:
             masks, pixels = pack_row(row)
-            values = masks + pixels
+            values = [value for pair in zip(masks, pixels) for value in pair]
             lines.append("        DB      " + ",".join(fmt_byte(v) for v in values))
     return "\n".join(lines) + "\n"
 
