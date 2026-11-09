@@ -89,13 +89,9 @@ MOVE_RIGHT:
         XOR     A
         LD      (PLAYER_DIRECTION),A
         LD      A,(PLAYER_X)
-        CP      0E8h                  ; original game right-edge threshold = 232
+        CP      0E6h                  ; final in-room position = 230
         JP      NC,RIGHT_STEP_DONE
         ADD     A,02h
-        CP      0E8h
-        JP      C,RIGHT_STORE_X
-        LD      A,0E8h
-RIGHT_STORE_X:
         LD      (PLAYER_X),A
 RIGHT_STEP_DONE:
         CALL    ADVANCE_WALK_FRAME
