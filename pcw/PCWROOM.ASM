@@ -3,8 +3,8 @@
 ; The map is expanded from the original 4x4 block data at build time.
 ;
 ; The 256x192 game area is displayed 1:1, centred at PCW x=232, y=32.
-; Original map 0 starts Rick at map x=8, y=139. The visible map starts at
-; map y=64, so Rick's screen position is x=240, y=107.
+; Original map 0 starts Rick at map x=8, y=139. The PC viewport begins at
+; x=-32, y=64, then is centred on the PCW: Rick is at x=272, y=107.
 ; Sprite 0x0B is the PC game's right-facing stopped Rick frame.
 
         ORG     0100h
@@ -20,7 +20,7 @@ START:
         CALL    DRAW_ROOM0
 
         LD      HL,PCW_SPRITE_011
-        LD      DE,00F0h
+        LD      DE,0110h
         LD      BC,006Bh
         LD      B,04h
         LD      A,15h
