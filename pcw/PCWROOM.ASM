@@ -116,7 +116,6 @@ CLEAR_BYTE:
         JP      NZ,CLEAR_LINE
         RET
 
-GET_SCANLINE_PTR:
 ; Input A = scanline y. Return HL = CPU address of its first visible byte.
 ; Physical bank 1 maps at 4000h and bank 2 maps at 8000h.
 GET_SCANLINE_PTR:
