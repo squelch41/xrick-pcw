@@ -172,9 +172,9 @@ DRAW_MASKED_BITMAP:
         PUSH    DE
         LD      (BITMAP_SOURCE),HL
         LD      (BITMAP_X),DE
+        LD      (HEIGHT_LEFT),A
         LD      A,C
         LD      (BITMAP_Y),A
-        LD      (HEIGHT_LEFT),A
         LD      A,B
         LD      (WIDTH_BYTES),A
 
@@ -336,10 +336,7 @@ RIGHT_PIXELS_SHIFT:
         SBC     HL,DE
         JP      NC,BITMAP_NEXT_COLUMN
 
-        LD      DE,0008h
-        ADD     HL,DE
-        ; HL above is a comparison value, so fetch the actual scanline
-        ; pointer again before addressing the right destination byte.
+        ; Fetch the scanline pointer again before addressing the right byte.
         LD      A,(BITMAP_Y)
         CALL    GET_SCANLINE_PTR
         LD      DE,(DEST_X)
