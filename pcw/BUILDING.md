@@ -25,7 +25,8 @@ The output files are placed in pcw/build/:
 - PCWRRAM.COM — read-only dump of the default Roller-RAM pointer table.
 - PCWDECO.COM — exports the raw Roller-RAM table to RRAM.TXT.
 - PCWBLIT.COM — Roller-RAM-based, byte-aligned 8x8 tile blitter test.
-- PCWTRANS.COM — transparent 8x8 masked-sprite test.
+- PCWTRANS.COM — byte-aligned transparent 8x8 masked-sprite test.
+- PCWSUB.COM — arbitrary-pixel-position transparent 8x8 sprite test.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -90,10 +91,19 @@ This first blitter is intentionally limited to opaque tiles aligned on an eight-
 
 ## PCWTRANS — transparent 8x8 sprite test
 
-Run `PCWTRANS` in Joyce. It clears the display, draws a checkerboard tile, then overlays two masked sprites. The mask convention is 1 = preserve the existing destination pixel and 0 = replace it with the corresponding pixel from the sprite. Each output byte is calculated as:
+Run `PCWTRANS` in Joyce. It clears the display, draws an 80x64 checkerboard panel, then overlays two masked sprites. The mask convention is 1 = preserve the existing destination pixel and 0 = replace it with the corresponding pixel from the sprite. Each output byte is calculated as:
 
     destination = (destination AND mask) OR pixels
 
 The routine uses the same Roller-RAM lookup as the opaque blitter, so each sprite row is written through the correct physical screen bank. Coordinates remain byte-aligned and the test uses complete 8x8 tiles. Press a key to clear the display and return to CP/M.
 
-The build script checks the COM header and file size; it does not verify runtime behaviour. This diagnostic has not yet been assembled or tested by the user, and has not been tested on physical PCW hardware.
+The user has confirmed that the revised test displays the checkerboard panel and both sprites in Joyce. The build script checks the COM header and file size; it does not verify runtime behaviour. This diagnostic has not been tested on physical PCW hardware.
+
+
+## PCWSUB — arbitrary-position transparent sprite test
+
+Run `PCWSUB` in Joyce. It draws a 128x64 checkerboard panel and overlays transparent 8x8 sprites at x=203 and x=245, deliberately using horizontal alignments of three and five pixels rather than byte boundaries. A third sprite begins at x=717 to exercise clipping at the right edge of the 720-pixel display.
+
+For each source row, `DRAW_MASKED_SPRITE` shifts the mask and pixel data into the left destination byte and, when needed, the adjacent byte eight addresses later. It combines each part with the existing screen using `(old AND mask) OR pixels`, preserving pixels outside the sprite. The routine clips the sprite at the right and bottom edges and skips x coordinates outside the screen.
+
+This is a new diagnostic and has not yet been assembled or run by the user. The build script's binary checks verify only the COM header and file size, not the shifting or clipping behaviour. Test in Joyce before using the routine in the game.
