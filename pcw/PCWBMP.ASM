@@ -52,10 +52,10 @@ START:
         LD      A,15h
         CALL    DRAW_MASKED_BITMAP
 
-        ; Reuse the 32x21 source near the right edge. Its first 23 pixels
-        ; remain visible; the final nine are clipped by the screen edge.
+        ; Move the 32x21 source farther right. The visible silhouette occupies
+        ; about x+7..x+24, so x=704 cuts roughly half of the person off.
         LD      HL,SPRITE_LARGE_32X21
-        LD      DE,02B9h
+        LD      DE,02C0h
         LD      BC,00B4h
         LD      B,04h
         LD      A,15h
