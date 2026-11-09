@@ -29,6 +29,7 @@ The output files are placed in pcw/build/:
 - PCWSUB.COM — arbitrary-pixel-position transparent 8x8 sprite test.
 - PCWBMP.COM — variable-size transparent bitmap test.
 - PCWREAL.COM — gallery of converted original Xrick PC sprite frames.
+- PCWROOM.COM — first original game room, original PC tiles and a static Rick sprite.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -144,3 +145,26 @@ The converter's monochrome mapping retains the low bit of each CGA pixel index. 
 Run `PCWREAL` in Joyce. Expect four adjacent person-like animation frames over the checkerboard panel. Press a key to clear the display and return to CP/M.
 
 The build check requires the COM output to contain at least 26,040 bytes of converted sprite data and remain below the conventional COM size limit. This checks that the sprite table was embedded, but does not validate the rendered result. PCWREAL has not yet been assembled or run by the user.
+
+
+## PCWROOM — first original game room
+
+Run PCWROOM in Joyce. It expands the original first PC map entry from the
+source game's 4x4 block data, selects the PC tile bank used by that submap, and
+converts the tiles to the same monochrome projection used by the sprite
+converter. The result is a 32x24 tile view, displayed 1:1 and centred on the
+PCW screen.
+
+The program then overlays the original right-facing stopped Rick frame
+(sprite 0x0B) at the first map's starting position. It uses the validated
+Roller-RAM scanline lookup and transparent bitmap renderer. Press a key to
+clear the screen and return to CP/M.
+
+The build script creates build/PCWROOM.INC from xrick/src/rd1/dat_maps.c and
+xrick/src/rd1/dat_tilesPC.c; this include is generated and should not be edited
+by hand. The converter checks the source table sizes and the build script
+checks that the resulting COM contains the room, tile and sprite data.
+
+**Status:** this is the first render of original level artwork and Rick on the
+PCW. It is still a static display test, not a playable game. Movement,
+collision, scrolling, entity updates and the game loop remain to be ported.
