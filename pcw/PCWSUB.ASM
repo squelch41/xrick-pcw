@@ -165,7 +165,7 @@ DRAW_MASKED_SPRITE:
         JP      NZ,SPRITE_DONE
         LD      A,E
         CP      0D0h
-        JR      NC,SPRITE_DONE
+        JP      NC,SPRITE_DONE
 
 SPRITE_X_VALID:
         ; Save x modulo 8 and the aligned base byte coordinate.
