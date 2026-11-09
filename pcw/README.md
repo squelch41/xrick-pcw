@@ -1,10 +1,11 @@
 # Amstrad PCW port work
 
-This directory contains the initial PCW-side development scaffold for
+This directory contains the native Z80/CP/M port work for
 [ xrick ](https://github.com/zpqrtbnk/xrick).
 
-**Status:** research and hardware smoke-test stage. This is not yet a playable
-Rick Dangerous port and does not contain the original game's assets.
+**Status:** the PCW screen, sprite renderer and first original level room are
+being brought up. PCWROOM draws the original map and a static Rick sprite;
+this is not yet a playable Rick Dangerous port.
 
 ## First target
 
@@ -17,6 +18,8 @@ Rick Dangerous port and does not contain the original game's assets.
 ## Files
 
 - `PCWAYTST.ASM` — minimal CP/M transient-program sound test.
+- `PCWROOM.ASM` — static first-room render using converted original tiles and Rick sprite data.
+- `tools/convert_pc_room.py` — expands the original map blocks and converts the PC tile bank.
 - `PORTING_NOTES.md` — initial source audit and proposed architecture.
 
 ## Sound-test status
