@@ -28,6 +28,7 @@ The output files are placed in pcw/build/:
 - PCWTRANS.COM — byte-aligned transparent 8x8 masked-sprite test.
 - PCWSUB.COM — arbitrary-pixel-position transparent 8x8 sprite test.
 - PCWBMP.COM — variable-size transparent bitmap test.
+- PCWREAL.COM — gallery of converted original Xrick PC sprite frames.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -118,4 +119,17 @@ The reusable routine is `DRAW_MASKED_BITMAP`. Its inputs are HL=source address, 
 
 The routine shifts each source byte across one or two Roller-RAM-addressed screen bytes, preserving pixels outside the bitmap. It clips at the right edge (x=719) and bottom edge (y=255). The original Xrick PC sprite data is arranged as four 8-pixel columns by 21 rows (32x21) and uses two-bit CGA mask/picture values; it is not directly compatible with this monochrome row-major format. A conversion step will be needed to translate the original sprite assets into the PCW format.
 
-This diagnostic is new and has not yet been assembled or run by the user. The build script verifies the COM header and file size only; it does not prove runtime correctness. Test it in Joyce before using this routine in the game.
+The user has confirmed that PCWBMP runs in Joyce, showing the 24x13 and 32x21 shapes and visibly clipping the person-shaped silhouette at the right edge when positioned at x=704. The build script verifies the COM header and file size only; it does not prove runtime correctness. The test has not been confirmed on physical PCW hardware.
+
+
+## PCW sprite conversion
+
+`tools/convert_pc_sprites.py` reads the original PC sprite table at `../xrick/src/rd1/dat_spritesPC.c` and generates `build/PCWSPRITES.INC`. The build script runs this converter before assembling PCWREAL. The generated include is a build product and is not source-controlled.
+
+The original PC sprites are 32x21 pixels. Their C data is stored column-major as four columns of 21 rows; each 16-bit mask/picture word represents eight 2-bit CGA pixels. The converter rearranges these into row-major, one-bit `MASK,PIXELS` byte pairs accepted by `DRAW_MASKED_BITMAP`.
+
+The PC palette in `xrick/src/rd1/fb.c` has four base colours: index 0 black, 1 green, 2 red/magenta, and 3 yellow. The converter retains the low bit of each two-bit pixel index, mapping 0 and 2 to black and 1 and 3 to white. This is a brightness-oriented monochrome mapping, and projecting the original operation `(old AND mask) OR picture` onto that bit produces the one-bit mask/pixel operation directly.
+
+Run `PCWREAL` in Joyce to see the first four original sprite frames (sprite IDs 1–4) over a checkerboard panel. They are placed at different horizontal pixel alignments to exercise the arbitrary-position renderer with real game artwork. The program contains all 155 converted sprite records, not just the four shown in the gallery.
+
+The converter checks that the source contains exactly 155 x 4 x 21 mask/picture records. The PCWREAL COM file should be at least 26,040 bytes because it embeds the complete converted sprite set; the build script checks this as well as the COM header and conventional COM size limit. Neither check replaces runtime testing.
