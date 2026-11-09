@@ -3,7 +3,7 @@
 ## Requirements
 
 - Fedora (or another Linux system) with z80asm version 1.8 or compatible.
-- Python 3, used only for binary-layout checks.
+- Python 3, used for sprite-data conversion and binary-layout checks.
 
 On Fedora:
 
@@ -133,3 +133,14 @@ The PC palette in `xrick/src/rd1/fb.c` has four base colours: index 0 black, 1 g
 Run `PCWREAL` in Joyce to see the first four original sprite frames (sprite IDs 1–4) over a checkerboard panel. They are placed at different horizontal pixel alignments to exercise the arbitrary-position renderer with real game artwork. The program contains all 155 converted sprite records, not just the four shown in the gallery.
 
 The converter checks that the source contains exactly 155 x 4 x 21 mask/picture records. The PCWREAL COM file should be at least 26,040 bytes because it embeds the complete converted sprite set; the build script checks this as well as the COM header and conventional COM size limit. Neither check replaces runtime testing.
+
+
+## PCWREAL — original Xrick sprite gallery
+
+The build script first runs `tools/convert_pc_sprites.py` against the original `xrick/src/rd1/dat_spritesPC.c`, generating `build/PCWSPRITES.INC`. It then assembles `PCWREAL.ASM`, which includes the complete converted sprite set and displays sprite IDs 1–4 over a checkerboard panel. These are four real 32x21 frames from the original PC sprite data, drawn at different horizontal pixel alignments.
+
+The converter's monochrome mapping retains the low bit of each CGA pixel index. In Xrick's PC palette this maps indices 0 and 2 to black and 1 and 3 to white. The original per-pixel mask/picture operation projects exactly onto that retained bit, so the PCW sprite masks continue to preserve or alter the destination correctly.
+
+Run `PCWREAL` in Joyce. Expect four adjacent person-like animation frames over the checkerboard panel. Press a key to clear the display and return to CP/M.
+
+The build check requires the COM output to contain at least 26,040 bytes of converted sprite data and remain below the conventional COM size limit. This checks that the sprite table was embedded, but does not validate the rendered result. PCWREAL has not yet been assembled or run by the user.
