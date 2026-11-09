@@ -147,24 +147,26 @@ Run `PCWREAL` in Joyce. Expect four adjacent person-like animation frames over t
 The build check requires the COM output to contain at least 26,040 bytes of converted sprite data and remain below the conventional COM size limit. This checks that the sprite table was embedded, but does not validate the rendered result. PCWREAL has not yet been assembled or run by the user.
 
 
-## PCWROOM — first original game room
+## PCWROOM — full-screen original first room
 
-Run PCWROOM in Joyce. It expands the original first PC map entry from the
-source game's 4x4 block data, selects the PC tile bank used by that submap, and
-converts the tiles to the same monochrome projection used by the sprite
-converter. The result is a 32x24 tile view, displayed 1:1 and centred on the
-PCW screen.
+Run `PCWROOM` in Joyce. The build-time converter expands the original first PC
+map from its 4x4 block data, converts the corresponding PC tile bank and
+composites the original right-facing idle Rick sprite at the level start.
 
-The program then overlays the original right-facing stopped Rick frame
-(sprite 0x0B) at the first map's starting position. It uses the validated
-Roller-RAM scanline lookup and transparent bitmap renderer. Press a key to
-clear the screen and return to CP/M.
+The 256x192 game view is resampled with nearest-neighbour sampling to fill the
+PCW's 720x256 raster. This avoids leaving the game artwork in a narrow
+256-pixel strip in the centre of the PCW screen. The converter writes a
+row-major 1-bit image; the Z80 program copies each 90-byte scanline through
+the correct Roller-RAM pointer, respecting the PCW's eight-byte horizontal
+address stride.
 
-The build script creates build/PCWROOM.INC from xrick/src/rd1/dat_maps.c and
-xrick/src/rd1/dat_tilesPC.c; this include is generated and should not be edited
-by hand. The converter checks the source table sizes and the build script
-checks that the resulting COM contains the room, tile and sprite data.
+The build script creates `build/PCWSCREEN.INC` from
+`xrick/src/rd1/dat_maps.c`, `xrick/src/rd1/dat_tilesPC.c` and
+`xrick/src/rd1/dat_spritesPC.c`. This include is generated and should not be
+edited by hand. Press a key to clear the screen and return to CP/M.
 
-**Status:** this is the first render of original level artwork and Rick on the
-PCW. It is still a static display test, not a playable game. Movement,
-collision, scrolling, entity updates and the game loop remain to be ported.
+**Status:** this is a static full-screen render of original level artwork with
+Rick at the starting position. It is not yet a playable game; movement,
+background restoration, collision, scrolling, entity updates and the game loop
+remain to be ported.
+
