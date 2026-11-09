@@ -50,7 +50,12 @@ def convert_word(mask_word: int, picture_word: int) -> tuple[int, int]:
 
 
 def fmt_byte(value: int) -> str:
-    return f"{value:02X}h"
+    # z80asm requires a leading decimal digit for hexadecimal literals;
+    # values beginning A-F must therefore be written as 0ABh, not ABh.
+    digits = f"{value:02X}"
+    if digits[0] in "ABCDEF":
+        digits = "0" + digits
+    return f"{digits}h"
 
 
 def main() -> int:
