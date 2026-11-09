@@ -30,6 +30,7 @@ The output files are placed in pcw/build/:
 - PCWBMP.COM — variable-size transparent bitmap test.
 - PCWREAL.COM — gallery of converted original Xrick PC sprite frames.
 - PCWROOM.COM — first original game room, original PC tiles and a static Rick sprite.
+- PCWPLAY.COM — experimental interactive room with S/D movement and the original walking cycle.
 - Matching .lst and .lbl files — assembler listing and labels.
 
 The sources use ORG 0100h. In z80asm 1.8, ORG changes the address used for labels and branch references but does not write 256 padding bytes to the output. CP/M loads the first byte of a .COM file at address 0100h.
@@ -173,3 +174,26 @@ Rick at the starting position. It is not yet a playable game; movement,
 background restoration, collision, scrolling, entity updates and the game loop
 remain to be ported.
 
+
+
+## PCWPLAY — first interactive player test
+
+Run `PCWPLAY` in Joyce after building. It starts at the same location as
+PCWROOM, but draws Rick as a separate sprite over a clean copy of the room.
+Use **S** to move left and **D** to move right. Each keypress advances Rick
+by two original game pixels; keyboard auto-repeat can be used to keep moving.
+Use **I** to return to the idle pose and **Q** to clear the display and return
+to CP/M.
+
+The new converters generate a room background without Rick and the original
+PC walking/idle/jump frames resampled to match the full-screen 720x256 view.
+The program snapshots Roller-RAM into low memory, restores the static room,
+then draws the selected masked sprite using the tested arbitrary-x blitter.
+For this first test the whole room is redrawn after each movement keypress.
+This is deliberately conservative: it guarantees that the previous sprite
+position is erased correctly before attempting a faster dirty-rectangle path.
+
+**Limitations:** this is a movement and animation test, not yet the full game.
+Collision, scrolling, jumping, ladders, firing, enemies and sound are not
+implemented in PCWPLAY yet. The build checks file layout and embedded data;
+the program still needs to be assembled and visually tested in Joyce.
