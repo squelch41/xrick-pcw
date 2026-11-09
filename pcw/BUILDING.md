@@ -107,3 +107,14 @@ Run `PCWSUB` in Joyce. It draws a 128x64 checkerboard panel and overlays transpa
 For each source row, `DRAW_MASKED_SPRITE` shifts the mask and pixel data into the left destination byte and, when needed, the adjacent byte eight addresses later. It combines each part with the existing screen using `(old AND mask) OR pixels`, preserving pixels outside the sprite. The routine clips the sprite at the right and bottom edges and skips x coordinates outside the screen.
 
 This is a new diagnostic and has not yet been assembled or run by the user. The build script's binary checks verify only the COM header and file size, not the shifting or clipping behaviour. Test in Joyce before using the routine in the game.
+
+
+## PCWBMP — variable-size transparent bitmap test
+
+Run `PCWBMP` in Joyce. It draws a checkerboard panel, then overlays a 24x13 bitmap and a 32x21 bitmap at non-byte-aligned x positions. A third 32x21 bitmap is deliberately placed at x=713 to test right-edge clipping. Press a key to clear the screen and return to CP/M.
+
+The reusable routine is `DRAW_MASKED_BITMAP`. Its inputs are HL=source address, DE=x in pixels, C=y in scanlines, B=width in bytes (each byte represents eight pixels), and A=height in scanlines. The bitmap width is therefore a multiple of eight pixels; height can be any non-zero value from 1 to 255. Source data is row-major, with each scanline containing one MASK,PIXELS byte pair for each source byte. Mask bits set to 1 preserve the destination; mask bits set to 0 draw the corresponding pixel bit. Pixel bit 7 is the leftmost pixel.
+
+The routine shifts each source byte across one or two Roller-RAM-addressed screen bytes, preserving pixels outside the bitmap. It clips at the right edge (x=719) and bottom edge (y=255). The original Xrick PC sprite data is arranged as four 8-pixel columns by 21 rows (32x21) and uses two-bit CGA mask/picture values; it is not directly compatible with this monochrome row-major format. A conversion step will be needed to translate the original sprite assets into the PCW format.
+
+This diagnostic is new and has not yet been assembled or run by the user. The build script verifies the COM header and file size only; it does not prove runtime correctness. Test it in Joyce before using this routine in the game.
