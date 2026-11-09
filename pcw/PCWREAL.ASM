@@ -91,7 +91,7 @@ CLEAR_BYTE:
         JP      NZ,CLEAR_LINE
         RET
 
-; Fill a 128x64 checkerboard panel at (160,80), using aligned 8x8 tiles.
+; Fill a 160x64 checkerboard panel at (160,80), using aligned 8x8 tiles.
 FILL_CHECKER_PANEL:
         LD      A,80
         LD      (PANEL_Y),A
