@@ -230,7 +230,7 @@ def generate_include(screen: bytearray, background_only: bool = False) -> str:
          "; Original first PC room and right-facing idle Rick, resampled from 256x192."),
         "; One bit per pixel, MSB first; each scanline contains 90 bytes.",
         "",
-        "PCW_SCREEN:",
+        ("PCW_BACKGROUND:" if background_only else "PCW_SCREEN:"),
     ]
     for y in range(SCREEN_HEIGHT):
         row = screen[y * 90:(y + 1) * 90]
