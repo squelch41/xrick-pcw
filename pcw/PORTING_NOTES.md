@@ -69,10 +69,10 @@ The current upstream repository has an `xrick/` directory at its root. Common so
 
 1. Verify sound hardware on the physical PCW; Joyce cannot verify dK'Tronics audio.
 2. Use the captured Roller-RAM table to implement and verify per-scanline pixel addressing and bit order. The user has confirmed the `PCWPIX` diagnostic visually in Joyce, including drawing, clearing, and the lower/right screen edges.
-3. Extend and benchmark the byte-aligned 8x8 tile blitter (`PCWBLIT` is committed but awaits user assembly/runtime test); then add transparent, non-byte-aligned and clipped sprite drawing routines in Z80 assembly.
-4. Decide how to scale/convert the source game's 320x200 image to the PCW's 720x256 display.
-5. Port a minimal playable RD1 room, initially with static map and one controllable Rick sprite.
-6. Add collision, scrolling, sound effects and remaining game logic.
+3. Extend and benchmark the tile and sprite blitters. The user has confirmed `PCWBLIT`, `PCWTRANS`, `PCWSUB` and `PCWBMP` in Joyce, including arbitrary horizontal alignment and clipping.
+4. Render original game artwork. `PCWROOM` converts the first PC room's block map and tile bank and overlays the original right-facing Rick frame. This is a static display test; its first build/runtime test is pending.
+5. Turn the static room into a playable starting scene with keyboard movement, background restoration and tile-based collision.
+6. Add scrolling, entity updates, sound effects and the remaining game logic.
 
 ## References
 
