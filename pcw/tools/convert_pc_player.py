@@ -116,7 +116,10 @@ def generate_include(pairs: list[tuple[int, int]]) -> str:
         for row in rows:
             masks, pixels = pack_row(row)
             values = [value for pair in zip(masks, pixels) for value in pair]
-            lines.append("        DB      " + ",".join(fmt_byte(v) for v in values))
+            # Keep assembler lines short while preserving interleaved pairs.
+            for start in range(0, len(values), 12):
+                chunk = values[start:start + 12]
+                lines.append("        DB      " + ",".join(fmt_byte(v) for v in chunk))
     return "\n".join(lines) + "\n"
 
 
