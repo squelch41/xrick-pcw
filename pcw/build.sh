@@ -15,8 +15,10 @@ mkdir -p build
 
 python3 tools/convert_pc_sprites.py ../xrick/src/rd1/dat_spritesPC.c build/PCWSPRITES.INC
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWSCREEN.INC
+python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
+python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 
-for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM; do
+for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
     "$Z80ASM" \
         --list="build/$name.lst" \
         --label="build/$name.lbl" \
@@ -24,7 +26,7 @@ for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCW
         "$name.ASM"
 done
 
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM <<'PY'
 from pathlib import Path
 import sys
 
@@ -44,6 +46,7 @@ checks = {
     "PCWBMP.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWREAL.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWROOM.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
+    "PCWPLAY.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
 }
 
 for filename in sys.argv[1:]:
@@ -64,6 +67,9 @@ for filename in sys.argv[1:]:
 
     if path.name == "PCWROOM.COM" and len(data) < 23040:
         raise SystemExit(f"{path.name}: full-screen image data is missing or incomplete ({len(data)} bytes)")
+
+    if path.name == "PCWPLAY.COM" and len(data) < 32000:
+        raise SystemExit(f"{path.name}: room background or scaled player frames are missing ({len(data)} bytes)")
 
     if len(data) >= 0xFF00:
         raise SystemExit(f"{path.name}: too large for a conventional CP/M COM file ({len(data)} bytes)")
