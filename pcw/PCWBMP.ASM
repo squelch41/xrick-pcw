@@ -52,8 +52,8 @@ START:
         LD      A,15h
         CALL    DRAW_MASKED_BITMAP
 
-        ; Reuse the 32x21 source near the right edge. Its last 23 pixels
-        ; remain visible, allowing us to see the right-edge clipping.
+        ; Reuse the 32x21 source near the right edge. Its first 23 pixels
+        ; remain visible; the final nine are clipped by the screen edge.
         LD      HL,SPRITE_LARGE_32X21
         LD      DE,02B9h
         LD      BC,00B4h
