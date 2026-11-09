@@ -331,18 +331,16 @@ GET_SCANLINE_PTR:
         RET
 
 PTR_BANK1:
+        ; Match the proven PCWROOM renderer: map only the window that
+        ; contains this scanline. Leave the other bank window untouched.
         LD      A,081h
         OUT     (0F1h),A
-        LD      A,086h
-        OUT     (0F2h),A
         LD      DE,04000h
         ADD     HL,DE
         POP     DE
         RET
 
 PTR_BANK2:
-        LD      A,085h
-        OUT     (0F1h),A
         LD      A,082h
         OUT     (0F2h),A
         LD      DE,08000h
