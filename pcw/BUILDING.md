@@ -112,7 +112,7 @@ This is a new diagnostic and has not yet been assembled or run by the user. The 
 
 ## PCWBMP — variable-size transparent bitmap test
 
-Run `PCWBMP` in Joyce. It draws a checkerboard panel, then overlays a 24x13 bitmap and a 32x21 bitmap at non-byte-aligned x positions. A third 32x21 bitmap is deliberately placed at x=713 to test right-edge clipping. Press a key to clear the screen and return to CP/M.
+Run `PCWBMP` in Joyce. It draws a checkerboard panel, then overlays a 24x13 bitmap and a 32x21 bitmap at non-byte-aligned x positions. A third 32x21 bitmap is placed at x=697, so its rightmost nine pixels are clipped at the screen edge while the remaining 23 pixels stay visible. Press a key to clear the screen and return to CP/M.
 
 The reusable routine is `DRAW_MASKED_BITMAP`. Its inputs are HL=source address, DE=x in pixels, C=y in scanlines, B=width in bytes (each byte represents eight pixels), and A=height in scanlines. The bitmap width is therefore a multiple of eight pixels; height can be any non-zero value from 1 to 255. Source data is row-major, with each scanline containing one MASK,PIXELS byte pair for each source byte. Mask bits set to 1 preserve the destination; mask bits set to 0 draw the corresponding pixel bit. Pixel bit 7 is the leftmost pixel.
 
