@@ -158,7 +158,10 @@ PCW's 720x256 raster. This avoids leaving the game artwork in a narrow
 256-pixel strip in the centre of the PCW screen. The converter writes a
 row-major 1-bit image; the Z80 program copies each 90-byte scanline through
 the correct Roller-RAM pointer, respecting the PCW's eight-byte horizontal
-address stride.
+address stride. It first buffers a complete row in low memory, then maps
+screen bank 1 only while writing rows that use it. This is necessary because
+the COM image crosses 4000h: mapping F1 to video RAM before reading the whole
+source would hide the latter part of the embedded image.
 
 The build script creates `build/PCWSCREEN.INC` from
 `xrick/src/rd1/dat_maps.c`, `xrick/src/rd1/dat_tilesPC.c` and
