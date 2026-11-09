@@ -14,7 +14,7 @@ fi
 mkdir -p build
 
 python3 tools/convert_pc_sprites.py ../xrick/src/rd1/dat_spritesPC.c build/PCWSPRITES.INC
-python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c build/PCWROOM.INC
+python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWSCREEN.INC
 
 for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM; do
     "$Z80ASM" \
@@ -62,8 +62,8 @@ for filename in sys.argv[1:]:
     if path.name == "PCWREAL.COM" and len(data) < 26040:
         raise SystemExit(f"{path.name}: converted sprite data is missing or incomplete ({len(data)} bytes)")
 
-    if path.name == "PCWROOM.COM" and len(data) < 28856:
-        raise SystemExit(f"{path.name}: converted room, tile or sprite data is missing ({len(data)} bytes)")
+    if path.name == "PCWROOM.COM" and len(data) < 23040:
+        raise SystemExit(f"{path.name}: full-screen image data is missing or incomplete ({len(data)} bytes)")
 
     if len(data) >= 0xFF00:
         raise SystemExit(f"{path.name}: too large for a conventional CP/M COM file ({len(data)} bytes)")
