@@ -4,8 +4,8 @@ This directory contains the native Z80/CP/M port work for
 [ xrick ](https://github.com/zpqrtbnk/xrick).
 
 **Status:** the PCW screen, sprite renderer and first original level room are
-being brought up. PCWROOM draws the original map and a static Rick sprite;
-this is not yet a playable Rick Dangerous port.
+being brought up. PCWROOM is the known-good static scene; PCWPLAY is the first
+interactive movement/animation experiment and is awaiting Joyce testing.
 
 ## First target
 
@@ -19,6 +19,8 @@ this is not yet a playable Rick Dangerous port.
 
 - `PCWAYTST.ASM` — minimal CP/M transient-program sound test.
 - `PCWROOM.ASM` — full-screen first-room render using the original map, tiles and Rick sprite.
+- `PCWPLAY.ASM` — experimental keyboard-controlled Rick movement and walking animation.
+- `tools/convert_pc_player.py` — converts original Rick frames to sprites matching the full-screen scale.
 - `tools/convert_pc_room.py` — expands the original map, converts the PC tiles and composites Rick into a full-screen image.
 - `PORTING_NOTES.md` — initial source audit and proposed architecture.
 
