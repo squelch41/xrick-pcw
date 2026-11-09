@@ -8,8 +8,10 @@
 
 START:
         DI
-        LD      A,081h
-        OUT     (0F1h),A
+
+        ; Keep physical screen bank 2 mapped in F2 so the Roller-RAM
+        ; table at B600h remains readable. Leave F1 on its normal CP/M
+        ; bank while fetching each source scanline.
         LD      A,082h
         OUT     (0F2h),A
 
@@ -18,32 +20,58 @@ START:
         XOR     A
         LD      (SCREEN_Y),A
 
-; Copy 90 source bytes to each scanline, respecting the PCW's eight-byte
-; horizontal address stride. The screen data itself is row-major.
+; Read one complete source row into the low-memory buffer before mapping
+; F1 to screen bank 1. The image extends beyond 4000h, so reading directly
+; while F1 is mapped to bank 1 would corrupt the final part of the image.
 SCREEN_LINE:
+        LD      HL,(SCREEN_SOURCE)
+        LD      DE,ROW_BUFFER
+        LD      BC,90
+        LDIR
+        LD      (SCREEN_SOURCE),HL
+
         LD      A,(SCREEN_Y)
         CALL    GET_SCANLINE_PTR
         LD      (SCREEN_DEST),HL
+
+        ; Bank 2 is already mapped in F2. Map bank 1 in F1 only for
+        ; scanlines whose Roller-RAM entry selects physical bank 1.
+        LD      A,(BANK_NO)
+        CP      01h
+        JR      NZ,SCREEN_COPY
+        LD      A,081h
+        OUT     (0F1h),A
+
+SCREEN_COPY:
+        LD      HL,ROW_BUFFER
         LD      B,90
 
 SCREEN_COPY_BYTE:
-        LD      HL,(SCREEN_SOURCE)
         LD      A,(HL)
         INC     HL
-        LD      (SCREEN_SOURCE),HL
-
+        PUSH    HL
         LD      HL,(SCREEN_DEST)
         LD      (HL),A
         LD      DE,0008h
         ADD     HL,DE
         LD      (SCREEN_DEST),HL
+        POP     HL
         DJNZ    SCREEN_COPY_BYTE
+
+        ; Restore the source/TPA bank before reading the next row.
+        LD      A,085h
+        OUT     (0F1h),A
 
         LD      A,(SCREEN_Y)
         INC     A
         LD      (SCREEN_Y),A
         JP      NZ,SCREEN_LINE
 
+        ; Restore the normal CP/M mapping before calling BDOS.
+        LD      A,085h
+        OUT     (0F1h),A
+        LD      A,086h
+        OUT     (0F2h),A
         EI
 WAIT_KEY:
         LD      C,06h
@@ -53,8 +81,6 @@ WAIT_KEY:
         JP      Z,WAIT_KEY
 
         DI
-        LD      A,081h
-        OUT     (0F1h),A
         LD      A,082h
         OUT     (0F2h),A
         CALL    CLEAR_SCREEN
@@ -65,22 +91,32 @@ WAIT_KEY:
         EI
         JP      0000h
 
-; Clear exactly the 90 visible bytes of each of the 256 scanlines.
+; Clear the 90 visible bytes on all 256 scanlines. As above, map F1 to
+; screen bank 1 only while clearing a line whose Roller-RAM pointer uses it.
 CLEAR_SCREEN:
         LD      C,00h
 CLEAR_LINE:
         LD      A,C
         CALL    GET_SCANLINE_PTR
+        LD      A,(BANK_NO)
+        CP      01h
+        JR      NZ,CLEAR_BYTES
+        LD      A,081h
+        OUT     (0F1h),A
+CLEAR_BYTES:
         LD      B,90
         LD      DE,0008h
 CLEAR_BYTE:
         LD      (HL),00h
         ADD     HL,DE
         DJNZ    CLEAR_BYTE
+        LD      A,085h
+        OUT     (0F1h),A
         INC     C
         JP      NZ,CLEAR_LINE
         RET
 
+GET_SCANLINE_PTR:
 ; Input A = scanline y. Return HL = CPU address of its first visible byte.
 ; Physical bank 1 maps at 4000h and bank 2 maps at 8000h.
 GET_SCANLINE_PTR:
@@ -149,6 +185,8 @@ BANK_NO:
         DB      00h
 LOW_BITS:
         DB      00h
+ROW_BUFFER:
+        DS      90
 
         INCLUDE "build/PCWSCREEN.INC"
 
