@@ -57,6 +57,9 @@ for filename in sys.argv[1:]:
             f"Expected: {wanted}\nActual:   {actual}"
         )
 
+    if path.name == "PCWREAL.COM" and len(data) < 26040:
+        raise SystemExit(f"{path.name}: converted sprite data is missing or incomplete ({len(data)} bytes)")
+
     if len(data) >= 0xFF00:
         raise SystemExit(f"{path.name}: too large for a conventional CP/M COM file ({len(data)} bytes)")
 
