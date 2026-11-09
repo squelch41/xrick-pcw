@@ -161,8 +161,8 @@ DRAW_MASKED_SPRITE:
         ; Reject x coordinates outside the 720-pixel display.
         LD      A,D
         CP      02h
-        JR      C,SPRITE_X_VALID
-        JR      NZ,SPRITE_DONE
+        JP      C,SPRITE_X_VALID
+        JP      NZ,SPRITE_DONE
         LD      A,E
         CP      0D0h
         JR      NC,SPRITE_DONE
@@ -335,7 +335,7 @@ SPRITE_ROW_DONE:
         LD      A,(ROWS_LEFT)
         DEC     A
         LD      (ROWS_LEFT),A
-        JR      NZ,SPRITE_ROW_START
+        JP      NZ,SPRITE_ROW_START
 
 SPRITE_DONE:
         POP     DE
