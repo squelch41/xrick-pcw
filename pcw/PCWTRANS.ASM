@@ -23,24 +23,18 @@ START:
         OUT     (0F2h),A
 
         CALL    CLEAR_SCREEN
+        CALL    FILL_CHECKER_PANEL
 
-        ; Checkerboard background.
-        LD      HL,TILE_CHECK
-        LD      DE,0100h
-        LD      BC,0050h
-        CALL    DRAW_OPAQUE_TILE
-
-        ; White diamond, with transparent pixels around it.
+        ; White diamond over the checkerboard panel.
         LD      HL,SPRITE_DIAMOND
-        LD      DE,0100h
-        LD      BC,0050h
+        LD      DE,00B8h
+        LD      BC,0068h
         CALL    DRAW_MASKED_TILE
 
-        ; A second sprite tests transparent black pixels over the same
-        ; background: a black cross inside a white outline.
+        ; Black cross with a white outline, separately over the same panel.
         LD      HL,SPRITE_CROSS
-        LD      DE,0108h
-        LD      BC,0050h
+        LD      DE,00D0h
+        LD      BC,0068h
         CALL    DRAW_MASKED_TILE
 
         LD      A,085h
@@ -83,6 +77,45 @@ CLEAR_BYTE:
         DJNZ    CLEAR_BYTE
         INC     C
         JR      NZ,CLEAR_LINE
+        RET
+
+; Fill an 80x64 pixel panel with repeated checkerboard tiles.
+; The panel begins at x=160, y=80. Counters live in memory because the
+; tile routines use the Z80 registers internally.
+FILL_CHECKER_PANEL:
+        LD      A,80
+        LD      (PANEL_Y),A
+        LD      A,08h
+        LD      (PANEL_ROWS),A
+PANEL_ROW:
+        LD      HL,00A0h
+        LD      (PANEL_X),HL
+        LD      A,0Ah
+        LD      (PANEL_COLS),A
+PANEL_COL:
+        LD      HL,TILE_CHECK
+        LD      DE,(PANEL_X)
+        LD      A,(PANEL_Y)
+        LD      C,A
+        LD      B,00h
+        CALL    DRAW_OPAQUE_TILE
+
+        LD      HL,(PANEL_X)
+        LD      DE,0008h
+        ADD     HL,DE
+        LD      (PANEL_X),HL
+        LD      A,(PANEL_COLS)
+        DEC     A
+        LD      (PANEL_COLS),A
+        JR      NZ,PANEL_COL
+
+        LD      A,(PANEL_Y)
+        ADD     A,08h
+        LD      (PANEL_Y),A
+        LD      A,(PANEL_ROWS)
+        DEC     A
+        LD      (PANEL_ROWS),A
+        JR      NZ,PANEL_ROW
         RET
 
 ; Draw one opaque byte-aligned 8x8 tile.
@@ -230,6 +263,14 @@ SPRITE_CROSS:
         DB      0E7h,018h
         DB      0E7h,000h
 
+PANEL_X:
+        DW      0000h
+PANEL_Y:
+        DB      00h
+PANEL_ROWS:
+        DB      00h
+PANEL_COLS:
+        DB      00h
 TILE_SOURCE:
         DW      0000h
 TILE_X:
