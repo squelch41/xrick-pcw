@@ -68,7 +68,7 @@ for filename in sys.argv[1:]:
     if path.name == "PCWROOM.COM" and len(data) < 23040:
         raise SystemExit(f"{path.name}: full-screen image data is missing or incomplete ({len(data)} bytes)")
 
-    if path.name == "PCWPLAY.COM" and len(data) < 32000:
+    if path.name == "PCWPLAY.COM" and len(data) < 32448:
         raise SystemExit(f"{path.name}: room background or scaled player frames are missing ({len(data)} bytes)")
 
     if len(data) >= 0xFF00:
