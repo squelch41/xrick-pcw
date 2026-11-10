@@ -18,6 +18,8 @@ python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/da
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
+python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAY3BG.INC --background-only --submap 2 --frow 0xA0
+python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAY3COLLISION.INC --submap 2 --frow 0xA0
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
 from pathlib import Path
@@ -34,7 +36,7 @@ if len(values) != 32 * 24:
 print(f"Collision data OK: {len(values)} first-room tile flags.")
 PY
 
-for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
+for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY PCWPLAY3; do
     "$Z80ASM" \
         --list="build/$name.lst" \
         --label="build/$name.lbl" \
@@ -42,7 +44,7 @@ for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCW
         "$name.ASM"
 done
 
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM build/PCWPLAY3.COM <<'PY'
 from pathlib import Path
 import sys
 
@@ -63,6 +65,7 @@ checks = {
     "PCWREAL.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWROOM.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWPLAY.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
+    "PCWPLAY3.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
 }
 
 for filename in sys.argv[1:]:
@@ -84,17 +87,17 @@ for filename in sys.argv[1:]:
     if path.name == "PCWROOM.COM" and len(data) < 23040:
         raise SystemExit(f"{path.name}: full-screen image data is missing or incomplete ({len(data)} bytes)")
 
-    if path.name == "PCWPLAY.COM" and len(data) < 32448:
+    if path.name in ("PCWPLAY.COM", "PCWPLAY3.COM") and len(data) < 32448:
         raise SystemExit(f"{path.name}: room background or scaled player frames are missing ({len(data)} bytes)")
 
-    if path.name == "PCWPLAY.COM":
-        labels = Path("build/PCWPLAY.lbl").read_text(encoding="ascii")
+    if path.name in ("PCWPLAY.COM", "PCWPLAY3.COM"):
+        labels = Path(f"build/{path.stem}.lbl").read_text(encoding="ascii")
         import re
         match = re.search(r"(?im)^\s*PCW_PLAYER_10:\s*equ\s*\$([0-9a-f]+)", labels)
         if not match or int(match.group(1), 16) != 0x8400:
             actual = match.group(1) if match else "missing"
             raise SystemExit(
-                "PCWPLAY.COM: PCW_PLAYER_10 must start at 8400h "
+                "{path.name}: PCW_PLAYER_10 must start at 8400h "
                 f"to avoid crossing a TPA bank boundary (found {actual})."
             )
 
@@ -104,7 +107,7 @@ for filename in sys.argv[1:]:
                 labels,
             )
             if not found:
-                raise SystemExit(f"PCWPLAY.COM: missing {name} label")
+                raise SystemExit(f"{path.name}: missing {name} label")
             return int(found.group(1), 16)
 
         # The two jump poses are copied with LDIR before either video bank is
@@ -114,11 +117,11 @@ for filename in sys.argv[1:]:
         left_jump = label_address("PCW_PLAYER_15")
         if not (0x4000 <= right_jump and right_jump + 672 <= 0x8000):
             raise SystemExit(
-                f"PCWPLAY.COM: right jump sprite crosses the F1 window ({right_jump:04X}h)"
+                f"{path.name}: right jump sprite crosses the F1 window ({right_jump:04X}h)"
             )
         if not (0x8000 <= left_jump and left_jump + 672 <= 0xC000):
             raise SystemExit(
-                f"PCWPLAY.COM: left jump sprite crosses the F2 window ({left_jump:04X}h)"
+                f"{path.name}: left jump sprite crosses the F2 window ({left_jump:04X}h)"
             )
 
     if len(data) >= 0xFF00:
