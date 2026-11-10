@@ -3,9 +3,10 @@
 This directory contains the native Z80/CP/M port work for
 [ xrick ](https://github.com/zpqrtbnk/xrick).
 
-**Status:** the PCW screen, sprite renderer and first original level room are
-being brought up. PCWROOM is the known-good static scene; PCWPLAY is the first
-interactive movement/animation experiment and is awaiting Joyce testing.
+**Status:** PCWROOM is the known-good static scene. PCWPLAY now supports
+left/right walking and a complete vertical jump arc with direction-specific
+jump poses. Jumping is currently a self-contained test with a fixed landing
+height; collision and horizontal steering while airborne are not implemented yet.
 
 ## First target
 
@@ -19,7 +20,7 @@ interactive movement/animation experiment and is awaiting Joyce testing.
 
 - `PCWAYTST.ASM` — minimal CP/M transient-program sound test.
 - `PCWROOM.ASM` — full-screen first-room render using the original map, tiles and Rick sprite.
-- `PCWPLAY.ASM` — experimental keyboard-controlled Rick movement and walking animation.
+- `PCWPLAY.ASM` — keyboard-controlled left/right movement, walking animation and a basic jump.
 - `tools/convert_pc_player.py` — converts original Rick frames to sprites matching the full-screen scale.
 - `tools/convert_pc_room.py` — expands the original map, converts the PC tiles and composites Rick into a full-screen image.
 - `PORTING_NOTES.md` — initial source audit and proposed architecture.
