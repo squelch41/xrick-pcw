@@ -48,9 +48,9 @@ for scroll in range(1, 4):
             break
         if line.lstrip().upper().startswith('DB '):
             count += len(line.split(None, 1)[1].split(','))
-    if count != 768:
-        raise SystemExit(f'{label}: expected 768 bytes, found {count}')
-print('Room set OK: three room maps plus three first-room scroll maps.')
+    if count != 256:
+        raise SystemExit(f'{label}: expected 256 newly exposed row bytes, found {count}')
+print('Room set OK: three room maps plus three first-room scroll-row strips.')
 PY
 
 python3 - build/PCWROOMBACKGROUND.INC <<'PY'
@@ -75,9 +75,9 @@ for scroll in range(1, 4):
     first, last = lines.index(label) + 1, lines.index(end)
     size = sum(len(line.split(None, 1)[1].split(',')) for line in lines[first:last]
                if line.lstrip().upper().startswith('DB '))
-    if size <= 0 or size >= 23040:
-        raise SystemExit(f'first-room scroll {scroll}: unexpected compressed size {size}')
-print('Room backgrounds OK: three rooms plus three scroll views.')
+    if size <= 0 or size >= (85 * 90):
+        raise SystemExit(f'first-room scroll strip {scroll}: unexpected compressed size {size}')
+print('Room backgrounds OK: three full rooms plus three compressed scroll strips.')
 PY
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
