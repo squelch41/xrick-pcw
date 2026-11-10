@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""Generate compact tile/collision/connector data for the first three PC rooms."""
+"""Generate the first three connected PC rooms, collision flags and compressed rasters."""
 from __future__ import annotations
 import re
 import sys
 from pathlib import Path
 
-MAP_ROWS, MAP_COLS = 24, 32
 ROOMS = 3
+SCREEN_WIDTH, SCREEN_HEIGHT = 720, 256
+ROOM_WIDTH, ROOM_HEIGHT = 256, 192
+SCREEN_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT // 8
 
 def strip_comments(source: str) -> str:
     source = re.sub(r"/\*[\s\S]*?\*/", "", source)
@@ -14,93 +16,196 @@ def strip_comments(source: str) -> str:
 
 def extract(source: str, name: str) -> str:
     m = re.search(r"\b" + re.escape(name) + r"\s*(?:\[[^\]]*\]\s*)*=\s*\{", source)
-    if not m: raise ValueError(f"could not find initializer for {name}")
+    if not m:
+        raise ValueError(f"could not find initializer for {name}")
     start, depth = source.find("{", m.start()), 0
     for i in range(start, len(source)):
-        if source[i] == "{": depth += 1
+        if source[i] == "{":
+            depth += 1
         elif source[i] == "}":
             depth -= 1
-            if depth == 0: return source[start + 1:i]
+            if depth == 0:
+                return source[start + 1:i]
     raise ValueError(f"unterminated initializer for {name}")
 
 def values(text: str) -> list[int]:
-    out=[]
-    for token in re.findall(r"0[xX][0-9a-fA-F]+|0[0-7]+|[0-9]+", text):
-        out.append(int(token, 16) if token.lower().startswith("0x") else
-                   int(token, 8) if len(token)>1 and token.startswith("0") else int(token))
-    return out
+    tokens = re.findall(r"0[xX][0-9a-fA-F]+|0[0-7]+|[0-9]+", text)
+    return [int(t, 16) if t.lower().startswith("0x") else
+            int(t, 8) if len(t) > 1 and t.startswith("0") else int(t)
+            for t in tokens]
 
 def visible_tiles(src: str, submap: int, frow: int) -> tuple[list[int], int]:
-    blocks=values(extract(src,"map_blocks"))
-    bnums=values(extract(src,"map_bnums"))
-    submaps=values(extract(src,"map_submaps"))
-    page, base=submaps[submap*4:submap*4+2]
-    index=base+((2*frow)&0xfff8)
-    grid=[[0]*32 for _ in range(44)]
-    # Each source block is a 4x4 tile square. Expand the 11x8 block
-    # arrangement into a 44x32 tile grid using explicit coordinates.
-    for block_row in range(11):
-        for block_col in range(8):
-            if index>=len(bnums): raise ValueError(f"submap {submap}: block table overrun")
-            block=bnums[index]; index+=1
-            chunk=blocks[block*16:(block+1)*16]
-            if len(chunk)!=16: raise ValueError(f"submap {submap}: invalid block {block}")
-            for tile_row in range(4):
-                for tile_col in range(4):
-                    grid[block_row*4+tile_row][block_col*4+tile_col]=chunk[tile_row*4+tile_col]
-    return [v for line in grid[8:32] for v in line], page
+    blocks = values(extract(src, "map_blocks"))
+    bnums = values(extract(src, "map_bnums"))
+    submaps = values(extract(src, "map_submaps"))
+    page, base = submaps[submap * 4:submap * 4 + 2]
+    index = base + ((2 * frow) & 0xfff8)
+    grid = [[0] * 32 for _ in range(44)]
+    for br in range(11):
+        for bc in range(8):
+            if index >= len(bnums):
+                raise ValueError(f"submap {submap}: block table overrun")
+            block = bnums[index]
+            index += 1
+            chunk = blocks[block * 16:(block + 1) * 16]
+            if len(chunk) != 16:
+                raise ValueError(f"submap {submap}: invalid block {block}")
+            for ty in range(4):
+                for tx in range(4):
+                    grid[br * 4 + ty][bc * 4 + tx] = chunk[ty * 4 + tx]
+    return [v for row in grid[8:32] for v in row], page
 
 def tile_flags(src: str, page: int) -> list[int]:
-    matches=list(re.finditer(r"\bmap_eflg_c\s*\[[^\]]*\]\s*=\s*\{([^}]*)\}",src))
-    if len(matches)<2: raise ValueError("could not locate ST and PC tile-flag tables")
-    enc=values(matches[-1].group(1)); off=0x10 if page==1 else 0
-    result=[]
-    for p in range(off,off+16,2):
-        count,value=enc[p:p+2]
-        if not count: raise ValueError("zero-length tile flag run")
-        result.extend([value]*count)
-    if len(result)!=256: raise ValueError(f"expanded tile flags have {len(result)} entries")
+    matches = list(re.finditer(r"\bmap_eflg_c\s*\[[^\]]*\]\s*=\s*\{([^}]*)\}", src))
+    if len(matches) < 2:
+        raise ValueError("could not locate ST and PC tile-flag tables")
+    enc = values(matches[-1].group(1))
+    offset = 0x10 if page == 1 else 0
+    result: list[int] = []
+    for p in range(offset, offset + 16, 2):
+        count, value = enc[p:p + 2]
+        if not count:
+            raise ValueError("zero-length tile flag run")
+        result.extend([value] * count)
+    if len(result) != 256:
+        raise ValueError(f"expanded tile flags have {len(result)} entries")
     return result
 
-def db(label: str, data: list[int]) -> list[str]:
-    lines=[label+":"]
-    for i in range(0,len(data),16):
-        lines.append("        DB      "+",".join(f"0{v:02X}h" for v in data[i:i+16]))
+def render_background(tile_ids: list[int], page: int, tile_source: str) -> bytearray:
+    words = values(extract(tile_source, "tiles_banks"))
+    bank_no = 3 if page == 1 else 2
+    bank = words[bank_no * 256 * 8:(bank_no + 1) * 256 * 8]
+    if len(bank) != 256 * 8:
+        raise ValueError(f"tile bank {bank_no} is incomplete")
+    pixels = [bytearray(ROOM_WIDTH) for _ in range(ROOM_HEIGHT)]
+    for ty in range(24):
+        for tx in range(32):
+            tile = tile_ids[ty * 32 + tx]
+            for sy in range(8):
+                word = bank[tile * 8 + sy]
+                row = pixels[ty * 8 + sy]
+                for x in range(8):
+                    row[tx * 8 + x] = (word >> (14 - 2 * x)) & 1
+    output = bytearray(SCREEN_BYTES)
+    for y in range(SCREEN_HEIGHT):
+        sy = (y * ROOM_HEIGHT) // SCREEN_HEIGHT
+        source_row = pixels[sy]
+        dest = y * (SCREEN_WIDTH // 8)
+        for x in range(SCREEN_WIDTH):
+            if source_row[(x * ROOM_WIDTH) // SCREEN_WIDTH]:
+                output[dest + (x >> 3)] |= 1 << (7 - (x & 7))
+    return output
+
+def lzss_compress(data: bytes) -> bytes:
+    """8-token groups: control bit 1=literal, 0=12-bit distance + 4-bit length."""
+    positions: dict[int, list[int]] = {}
+    output = bytearray()
+    pos = 0
+    while pos < len(data):
+        control = 0
+        tokens = bytearray()
+        for bit in range(7, -1, -1):
+            if pos >= len(data):
+                break
+            best_len = 0
+            best_distance = 0
+            if pos + 2 < len(data):
+                key = (data[pos] << 16) | (data[pos + 1] << 8) | data[pos + 2]
+                candidates = positions.get(key, ())
+                for candidate in reversed(candidates):
+                    distance = pos - candidate
+                    if distance > 4096:
+                        break
+                    length = 3
+                    while (length < 18 and pos + length < len(data)
+                           and data[candidate + length] == data[pos + length]):
+                        length += 1
+                    if length > best_len:
+                        best_len, best_distance = length, distance
+                        if length == 18:
+                            break
+            if best_len >= 3:
+                encoded = best_distance - 1
+                tokens.append(encoded & 0xff)
+                tokens.append(((encoded >> 8) << 4) | (best_len - 3))
+                count = best_len
+            else:
+                control |= 1 << bit
+                tokens.append(data[pos])
+                count = 1
+            for p in range(pos, pos + count):
+                if p + 2 >= len(data):
+                    continue
+                key = (data[p] << 16) | (data[p + 1] << 8) | data[p + 2]
+                bucket = positions.setdefault(key, [])
+                bucket.append(p)
+                if len(bucket) > 64:
+                    del bucket[0]
+            pos += count
+        output.append(control)
+        output.extend(tokens)
+    return bytes(output)
+
+def db(label: str, data: bytes | list[int]) -> list[str]:
+    lines = [label + ":"]
+    for i in range(0, len(data), 16):
+        lines.append("        DB      " + ",".join(f"0{v:02X}h" for v in data[i:i + 16]))
     return lines
 
 def main() -> int:
-    if len(sys.argv)!=3:
-        print("usage: convert_pc_room_set.py dat_maps.c output.inc",file=sys.stderr); return 2
+    if len(sys.argv) != 5:
+        print("usage: convert_pc_room_set.py dat_maps.c dat_tilesPC.c roomset.inc backgrounds.inc", file=sys.stderr)
+        return 2
     try:
-        src=strip_comments(Path(sys.argv[1]).read_text(encoding="utf-8"))
-        maps=values(extract(src,"map_maps"))
-        if len(maps)<5: raise ValueError("map 0 metadata missing")
-        frow=maps[2]
-        conns=values(extract(src,"map_connect"))
-        if len(conns)<ROOMS*3*4: raise ValueError("map 0 connector records missing")
-        all_lines=["; Generated by tools/convert_pc_room_set.py -- do not edit.",
-                   "; Three connected screens of original PC map 0.",
-                   "; Each room has 768 tile IDs followed by 768 collision flags.",
-                   "; Room records use one byte per tile and per collision cell."]
+        maps = strip_comments(Path(sys.argv[1]).read_text(encoding="utf-8"))
+        tiles = strip_comments(Path(sys.argv[2]).read_text(encoding="utf-8"))
+        map_meta = values(extract(maps, "map_maps"))
+        connectors = values(extract(maps, "map_connect"))
+        if len(map_meta) < 5 or len(connectors) < ROOMS * 12:
+            raise ValueError("map 0 metadata or connector records are incomplete")
+        frow = map_meta[2]
+        room_lines = [
+            "; Generated by tools/convert_pc_room_set.py -- do not edit.",
+            "; Collision flags and three 4-byte connector slots for each room."
+        ]
+        bg_lines = [
+            "; Generated by tools/convert_pc_room_set.py -- do not edit.",
+            "; Each screen is a 720x256 1-bit raster compressed with 12-bit LZSS."
+        ]
+        compressed_sizes = []
         for room in range(ROOMS):
-            tiles,page=visible_tiles(src,room,frow)
-            if page not in (0,1): raise ValueError(f"room {room}: unsupported tile page {page}")
-            flags=tile_flags(src,page)
-            collision=[flags[t] for t in tiles]
-            all_lines += db(f"PCW_ROOM{room}_TILES",tiles)
-            all_lines += db(f"PCW_ROOM{room}_FLAGS",collision)
-            # Three connector slots per submap: left, right, sentinel.
-            records=conns[room*12:room*12+12]
-            all_lines += db(f"PCW_ROOM{room}_CONNECTORS",records)
-            if room<ROOMS-1:
-                # Right-hand connector is slot 1: frow += rowin - rowout.
-                _direction,rowout,_dest,rowin=records[4:8]
-                frow=(frow-rowout+rowin)&0xff
-        Path(sys.argv[2]).parent.mkdir(parents=True,exist_ok=True)
-        Path(sys.argv[2]).write_text("\n".join(all_lines)+"\n",encoding="ascii")
-        print(f"Generated {ROOMS} rooms: {ROOMS*768} tile IDs, {ROOMS*768} collision flags, {ROOMS*12} connector bytes.")
-    except (OSError,ValueError,IndexError) as exc:
-        print(f"error: {exc}",file=sys.stderr); return 2
+            tile_ids, page = visible_tiles(maps, room, frow)
+            if page not in (0, 1):
+                raise ValueError(f"room {room}: unsupported tile page {page}")
+            flags = tile_flags(maps, page)
+            collision = bytes(flags[tile] for tile in tile_ids)
+            if len(collision) != 768:
+                raise ValueError(f"room {room}: expected 768 collision cells")
+            records = connectors[room * 12:room * 12 + 12]
+            room_lines += db(f"PCW_ROOM{room}_FLAGS", collision)
+            room_lines += db(f"PCW_ROOM{room}_CONNECTORS", records)
+            raster = render_background(tile_ids, page, tiles)
+            compressed = lzss_compress(raster)
+            bg_lines += db(f"PCW_ROOM{room}_BG_COMP", compressed)
+            bg_lines.append(f"PCW_ROOM{room}_BG_COMP_END:")
+            compressed_sizes.append(len(compressed))
+            if room < ROOMS - 1:
+                _direction, rowout, _destination, rowin = records[4:8]
+                frow = (frow - rowout + rowin) & 0xff
+        Path(sys.argv[3]).parent.mkdir(parents=True, exist_ok=True)
+        Path(sys.argv[4]).parent.mkdir(parents=True, exist_ok=True)
+        Path(sys.argv[3]).write_text("\n".join(room_lines) + "\n", encoding="ascii")
+        Path(sys.argv[4]).write_text("\n".join(bg_lines) + "\n", encoding="ascii")
+        print(
+            f"Generated {ROOMS} rooms: {ROOMS * 768} collision flags, "
+            f"{ROOMS * 12} connector bytes; compressed backgrounds "
+            + ", ".join(str(n) for n in compressed_sizes)
+            + f" bytes (total {sum(compressed_sizes)})."
+        )
+    except (OSError, ValueError, IndexError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
     return 0
 
-if __name__=="__main__": raise SystemExit(main())
+if __name__ == "__main__":
+    raise SystemExit(main())
