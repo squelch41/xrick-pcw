@@ -51,17 +51,16 @@ def parse_values(initializer: str) -> list[int]:
 
 
 def load_pc_tile_flags(source: str, page: int) -> list[int]:
-    marker = source.find("Tile environment flags")
-    pc_marker = source.find("#else /* PLATFORM_PC */", marker)
-    if marker < 0 or pc_marker < 0:
-        raise ValueError("could not locate the PC tile-flag table")
-    match = re.search(
+    # The source contains separate ST and PC initializers. Comments have
+    # already been stripped, so choose the final declaration (the PC table)
+    # instead of relying on the removed PLATFORM_PC comment.
+    matches = list(re.finditer(
         r"\bmap_eflg_c\s*\[[^\]]*\]\s*=\s*\{([^}]*)\}",
-        source[pc_marker:],
-    )
-    if not match:
-        raise ValueError("could not parse the PC map_eflg_c initializer")
-    encoded = parse_values(match.group(1))
+        source,
+    ))
+    if len(matches) < 2:
+        raise ValueError("could not locate both ST and PC map_eflg_c tables")
+    encoded = parse_values(matches[-1].group(1))
     if len(encoded) != 32:
         raise ValueError(f"PC map_eflg_c has {len(encoded)} bytes; expected 32")
 
