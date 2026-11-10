@@ -98,6 +98,29 @@ for filename in sys.argv[1:]:
                 f"to avoid crossing a TPA bank boundary (found {actual})."
             )
 
+        def label_address(name):
+            found = re.search(
+                rf"(?im)^\\s*{re.escape(name)}:\\s*equ\\s*\\$([0-9a-f]+)",
+                labels,
+            )
+            if not found:
+                raise SystemExit(f"PCWPLAY.COM: missing {name} label")
+            return int(found.group(1), 16)
+
+        # The two jump poses are copied with LDIR before either video bank is
+        # mapped over the TPA. Ensure neither 672-byte source crosses a 16KB
+        # CPU window boundary.
+        right_jump = label_address("PCW_PLAYER_06")
+        left_jump = label_address("PCW_PLAYER_15")
+        if not (0x4000 <= right_jump and right_jump + 672 <= 0x8000):
+            raise SystemExit(
+                f"PCWPLAY.COM: right jump sprite crosses the F1 window ({right_jump:04X}h)"
+            )
+        if not (0x8000 <= left_jump and left_jump + 672 <= 0xC000):
+            raise SystemExit(
+                f"PCWPLAY.COM: left jump sprite crosses the F2 window ({left_jump:04X}h)"
+            )
+
     if len(data) >= 0xFF00:
         raise SystemExit(f"{path.name}: too large for a conventional CP/M COM file ({len(data)} bytes)")
 
