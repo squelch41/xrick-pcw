@@ -1374,8 +1374,6 @@ ROOM_SCROLL:
         DB      00h                    ; first-room viewport: 0..3
 ROOM_FLAGS_PTR:
         DW      0000h
-ROOM_FLAGS_BUFFER:
-        DS      768
 BG_COMP_SOURCE:
         DW      0000h
 BG_COPY_SOURCE:
@@ -1450,5 +1448,10 @@ PCW_BACKGROUND:
         INCLUDE "build/PCWPLAYSPRITES.INC"
         INCLUDE "build/PCWROOMSET.INC"
         INCLUDE "build/PCWROOMBACKGROUND.INC"
+
+; Writable collision-map workspace. Keep it after the fixed-address sprites
+; and generated assets so adding it cannot move PCW_PLAYER_10 from 8400h.
+ROOM_FLAGS_BUFFER:
+        DS      768
 
         END
