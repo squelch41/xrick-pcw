@@ -22,19 +22,22 @@ python3 tools/convert_pc_room_set.py ../xrick/src/rd1/dat_maps.c build/PCWROOMSE
 
 python3 - build/PCWROOMSET.INC <<'PY'
 from pathlib import Path
-import re
-source = Path(__import__('sys').argv[1]).read_text(encoding='ascii')
+import sys
+lines = Path(sys.argv[1]).read_text(encoding='ascii').splitlines()
 for room in range(3):
     for kind in ('TILES', 'FLAGS'):
         label = f'PCW_ROOM{room}_{kind}:'
-        if source.count(label) != 1:
+        if lines.count(label) != 1:
             raise SystemExit(f'missing or duplicate {label}')
-        start = source.index(label)
-        end = source.find('\\nPCW_', start + len(label))
-        section = source[start:] if end < 0 else source[start:end]
-        values = re.findall(r'\\b([0-9A-F]{2})h\\b', section, re.IGNORECASE)
-        if len(values) != 768:
-            raise SystemExit(f'{label}: expected 768 bytes, found {len(values)}')
+        start = lines.index(label) + 1
+        count = 0
+        for line in lines[start:]:
+            if line.startswith('PCW_'):
+                break
+            if line.lstrip().upper().startswith('DB '):
+                count += len(line.split(None, 1)[1].split(','))
+        if count != 768:
+            raise SystemExit(f'{label}: expected 768 bytes, found {count}')
 print('Room set OK: three 32x24 tile maps and collision maps.')
 PY
 
