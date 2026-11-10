@@ -97,7 +97,7 @@ for filename in sys.argv[1:]:
         if not match or int(match.group(1), 16) != 0x8400:
             actual = match.group(1) if match else "missing"
             raise SystemExit(
-                "{path.name}: PCW_PLAYER_10 must start at 8400h "
+                f"{path.name}: PCW_PLAYER_10 must start at 8400h "
                 f"to avoid crossing a TPA bank boundary (found {actual})."
             )
 
