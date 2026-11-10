@@ -37,7 +37,20 @@ for room in range(3):
                 count += len(line.split(None, 1)[1].split(','))
         if count != expected:
             raise SystemExit(f'{label}: expected {expected} bytes, found {count}')
-print('Room set OK: three 32x24 collision maps and connector tables.')
+for scroll in range(1, 4):
+    label = f'PCW_ROOM0_SCROLL{scroll}_FLAGS:'
+    if lines.count(label) != 1:
+        raise SystemExit(f'missing or duplicate {label}')
+    start = lines.index(label) + 1
+    count = 0
+    for line in lines[start:]:
+        if line.startswith('PCW_'):
+            break
+        if line.lstrip().upper().startswith('DB '):
+            count += len(line.split(None, 1)[1].split(','))
+    if count != 768:
+        raise SystemExit(f'{label}: expected 768 bytes, found {count}')
+print('Room set OK: three room maps plus three first-room scroll maps.')
 PY
 
 python3 - build/PCWROOMBACKGROUND.INC <<'PY'
@@ -54,7 +67,17 @@ for room in range(3):
                if line.lstrip().upper().startswith('DB '))
     if size <= 0 or size >= 23040:
         raise SystemExit(f'room {room}: unexpected compressed background size {size}')
-print('Room backgrounds OK: three compressed 720x256 images.')
+for scroll in range(1, 4):
+    label = f'PCW_ROOM0_SCROLL{scroll}_BG_COMP:'
+    end = f'{label[:-1]}_END:'
+    if lines.count(label) != 1 or lines.count(end) != 1:
+        raise SystemExit(f'missing or duplicate scroll background labels for view {scroll}')
+    first, last = lines.index(label) + 1, lines.index(end)
+    size = sum(len(line.split(None, 1)[1].split(',')) for line in lines[first:last]
+               if line.lstrip().upper().startswith('DB '))
+    if size <= 0 or size >= 23040:
+        raise SystemExit(f'first-room scroll {scroll}: unexpected compressed size {size}')
+print('Room backgrounds OK: three rooms plus three scroll views.')
 PY
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
