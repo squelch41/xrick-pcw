@@ -182,6 +182,12 @@ for filename in sys.argv[1:]:
                 f"{path.name}: left jump sprite crosses the F2 window ({left_jump:04X}h)"
             )
 
+    if path.name == "PCWPLAY.COM" and len(data) > 62720:
+        raise SystemExit(
+            f"{path.name}: exceeds the PCW CP/M Plus TPA limit of 62720 bytes "
+            f"({len(data)} bytes)"
+        )
+
     if len(data) >= 0xFF00:
         raise SystemExit(f"{path.name}: too large for a conventional CP/M COM file ({len(data)} bytes)")
 
