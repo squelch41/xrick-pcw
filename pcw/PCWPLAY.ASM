@@ -12,9 +12,10 @@
 ;   V = draw left-facing frame 5 directly, bypassing frame selection
 ;   Q = clear the display and return to CP/M
 ;
-; This milestone adds the original PC jump impulse and jump poses. The jump
-; is currently a self-contained vertical arc with a flat landing height;
-; collision, air steering, scrolling and other entities come later.
+; This milestone adds the original PC jump impulse and jump poses, plus
+; S/D air steering and collision against first-room solid tiles. Landing
+; still returns to the initial fixed floor height; gaps, falling and scrolling
+; are not implemented yet.
 ; Walking remains one original game step per keypress.
 ;
 ; The room background and player frames are generated from the original
@@ -189,7 +190,8 @@ SELECT_IDLE:
 
 ; Start a complete jump using the original PC game's initial impulse and
 ; gravity, scaled from 256x192 game coordinates to the 720x256 PCW display.
-; The jump is intentionally vertical-only for this milestone.
+; S/D can steer in the air; first-room solid tiles stop head/side movement.
+; Landing still uses the fixed initial floor height in this milestone.
 START_JUMP:
         LD      A,(PLAYER_DIRECTION)
         OR      A
