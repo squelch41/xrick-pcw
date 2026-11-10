@@ -6,12 +6,7 @@
 ;   D = move right (also steers right in the air)
 ;   W = jump
 ;   S = crouch / stand; crawl with A or D while crouched
-;   I = stand still / restore idle pose
-;   B = redraw background only (diagnostic)
-;   P = draw the current player only (diagnostic; use after B)
-;   1..5 = display an individual left-facing walk frame at the start position
-;   V = draw left-facing frame 5 directly, bypassing frame selection
-;   J/K = display the right/left jump pose without jump physics
+;   I = restore the idle pose
 ;   Q = clear the display and return to CP/M
 ;
 ; This milestone adds the original PC jump impulse and jump poses, plus
@@ -86,74 +81,10 @@ MAIN_LOOP:
         JP      Z,START_JUMP
         CP      077h                  ; w
         JP      Z,START_JUMP
-        CP      04Ah                  ; J: show right-facing jump frame
-        JP      Z,TEST_JUMP_RIGHT
-        CP      06Ah                  ; j
-        JP      Z,TEST_JUMP_RIGHT
-        CP      04Bh                  ; K: show left-facing jump frame
-        JP      Z,TEST_JUMP_LEFT
-        CP      06Bh                  ; k
-        JP      Z,TEST_JUMP_LEFT
         CP      049h                  ; I
         JP      Z,SELECT_IDLE
         CP      069h                  ; i
         JP      Z,SELECT_IDLE
-        CP      042h                  ; B: background only, for diagnosis
-        JP      Z,REDRAW_BACKGROUND_ONLY
-        CP      062h                  ; b
-        JP      Z,REDRAW_BACKGROUND_ONLY
-        CP      050h                  ; P: player only, for diagnosis
-        JP      Z,DRAW_PLAYER_ONLY
-        CP      070h                  ; p
-        JP      Z,DRAW_PLAYER_ONLY
-        CP      056h                  ; V: draw left-walk frame 5 directly
-        JP      Z,TEST_LEFT_FRAME_5
-        CP      076h                  ; v
-        JP      Z,TEST_LEFT_FRAME_5
-        CP      031h                  ; 1..5: inspect individual left walk frames
-        JP      C,MAIN_LOOP
-        CP      036h                  ; accept 1 through 5 inclusive
-        JP      NC,MAIN_LOOP
-        SUB     030h
-        LD      (WALK_FRAME),A
-        LD      A,01h
-        LD      (PLAYER_DIRECTION),A
-        LD      A,08h
-        LD      (PLAYER_X),A
-        CALL    SELECT_WALK_SPRITE
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
-
-; Bypass the numeric diagnostic and frame lookup table completely.
-; This checks whether sprite 0x11 itself can be copied and drawn.
-TEST_LEFT_FRAME_5:
-        LD      A,01h
-        LD      (PLAYER_DIRECTION),A
-        LD      A,08h
-        LD      (PLAYER_X),A
-        LD      HL,PCW_PLAYER_11
-        LD      (PLAYER_SPRITE_PTR),HL
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
-
-; Display jump sprites without running the jump physics or collision code.
-; These are useful for separating sprite-data/layout faults from jump faults.
-TEST_JUMP_RIGHT:
-        XOR     A
-        LD      (PLAYER_DIRECTION),A
-        LD      HL,PCW_PLAYER_06
-        LD      (PLAYER_SPRITE_PTR),HL
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
-
-TEST_JUMP_LEFT:
-        LD      A,01h
-        LD      (PLAYER_DIRECTION),A
-        LD      HL,PCW_PLAYER_15
-        LD      (PLAYER_SPRITE_PTR),HL
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
-
 MOVE_LEFT:
         LD      A,01h
         LD      (PLAYER_DIRECTION),A
@@ -226,8 +157,7 @@ GROUND_MOVE_BLOCKED:
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
-; X toggles crouching. When crouched, Rick can crawl left/right and
-; uses the original PC crawl frames (07/08 right, 13/14 left).
+; S toggles crouching. Rick uses the original crawl frames while moving.
 TOGGLE_CROUCH:
         LD      A,(CROUCHING)
         OR      A
@@ -307,13 +237,7 @@ CRAWL_RIGHT_FRAME_2:
         LD      HL,PCW_PLAYER_08
         JP      CRAWL_SPRITE_STORE
 CRAWL_LEFT_SPRITE:
-        LD      A,(CRAWL_FRAME)
-        OR      A
-        JP      NZ,CRAWL_LEFT_FRAME_2
         LD      HL,PCW_PLAYER_13
-        JP      CRAWL_SPRITE_STORE
-CRAWL_LEFT_FRAME_2:
-        LD      HL,PCW_PLAYER_14
 CRAWL_SPRITE_STORE:
         LD      (PLAYER_SPRITE_PTR),HL
         RET
@@ -1048,27 +972,6 @@ BG_LITERAL:
         JP      NZ,BG_NEXT_TOKEN
 BG_DECOMPRESS_DONE:
         RET
-
-; Diagnostic split: B redraws only the room, P draws only the current
-; player over that room. This distinguishes background banking from the
-; masked-sprite renderer without changing the normal D/S/I behaviour.
-REDRAW_BACKGROUND_ONLY:
-        ; Video-bank remapping and writes must be atomic with respect to the
-        ; PCW interrupt handler. PCWROOM keeps interrupts disabled throughout.
-        DI
-        CALL    RESTORE_TPA
-        CALL    DRAW_BACKGROUND
-        CALL    RESTORE_TPA
-        EI
-        JP      MAIN_LOOP
-
-DRAW_PLAYER_ONLY:
-        DI
-        CALL    RESTORE_TPA
-        CALL    DRAW_PLAYER
-        CALL    RESTORE_TPA
-        EI
-        JP      MAIN_LOOP
 
 SELECT_IDLE_SPRITE:
         LD      A,(PLAYER_DIRECTION)
