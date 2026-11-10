@@ -318,6 +318,8 @@ JUMP_SCROLL_THRESHOLD:
         LD      A,H
         CP      0BBh                  ; scroll when Rick reaches y=187
         JP      C,JUMP_CHECK_BOTTOM
+        CP      0E4h
+        JP      NC,JUMP_BOTTOM_LIMIT
         ; Scroll only if the candidate body is clear of platforms and walls.
         LD      (AIR_CHECK_Y),A
         LD      A,(PLAYER_X)
