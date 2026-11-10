@@ -95,7 +95,7 @@ def main() -> int:
             if room<ROOMS-1:
                 # Right-hand connector is slot 1: frow += rowin - rowout.
                 _direction,rowout,_dest,rowin=records[4:8]
-                frow=(frow-rowout+rowin)&0xffff
+                frow=(frow-rowout+rowin)&0xff
         Path(sys.argv[2]).parent.mkdir(parents=True,exist_ok=True)
         Path(sys.argv[2]).write_text("\n".join(all_lines)+"\n",encoding="ascii")
         print(f"Generated {ROOMS} rooms: {ROOMS*768} tile IDs, {ROOMS*768} collision flags, {ROOMS*12} connector bytes.")
