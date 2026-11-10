@@ -678,7 +678,15 @@ TRY_ROOM_SCROLL:
         INC     A
         LD      (ROOM_SCROLL),A
         LD      HL,(PLAYER_Y_FP)
-        LD      DE,0FFABh              ; subtract 85 pixels (8 x 8 source rows)
+        ; PLAYER_Y_FP is 8.8 fixed point. Eight source tile rows scale
+        ; to 85.333 PCW pixels, so use 85, 86, 85 to keep cumulative
+        ; displacement at exactly 256 pixels across the three scrolls.
+        LD      DE,0AB00h              ; -85.0 pixels
+        LD      A,(ROOM_SCROLL)
+        CP      02h
+        JP      NZ,ROOM_SCROLL_SHIFT_READY
+        LD      DE,0AA00h              ; -86.0 pixels on the second scroll
+ROOM_SCROLL_SHIFT_READY:
         ADD     HL,DE
         LD      (PLAYER_Y_FP),HL
         LD      A,H
