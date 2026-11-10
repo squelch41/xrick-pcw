@@ -48,8 +48,8 @@ for scroll in range(1, 4):
             break
         if line.lstrip().upper().startswith('DB '):
             count += len(line.split(None, 1)[1].split(','))
-    if count != 256:
-        raise SystemExit(f'{label}: expected 256 newly exposed row bytes, found {count}')
+    if count != 128:
+        raise SystemExit(f'{label}: expected 128 packed bytes for 256 newly exposed cells, found {count}')
 print('Room set OK: three room maps plus three first-room scroll-row strips.')
 PY
 
