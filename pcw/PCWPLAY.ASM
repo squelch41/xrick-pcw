@@ -252,10 +252,9 @@ SELECT_IDLE:
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
-; Start a complete jump using the original PC game's initial impulse and
-; gravity, scaled from 256x192 game coordinates to the 720x256 PCW display.
-; S/D can steer in the air; first-room solid tiles stop head/side movement.
-; Landing still uses the fixed initial floor height in this milestone.
+; Start a complete jump from the current standing height, using the
+; original PC game's initial impulse and gravity scaled to the PCW display.
+; S/D can steer in the air; first-room tiles stop movement and support landing.
 START_JUMP:
         LD      A,(PLAYER_DIRECTION)
         OR      A
@@ -266,8 +265,6 @@ START_JUMP_LEFT:
         LD      HL,PCW_PLAYER_15
 START_JUMP_FRAME:
         LD      (PLAYER_SPRITE_PTR),HL
-        LD      HL,06400h              ; screen y=100 in 8.8 fixed point
-        LD      (PLAYER_Y_FP),HL
         LD      HL,0F8ABh              ; -7.332 PCW pixels/update (~ -5.5 game px)
         LD      (JUMP_VELOCITY),HL
 
