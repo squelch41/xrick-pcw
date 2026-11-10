@@ -95,7 +95,7 @@ if len(values) != 32 * 24:
 print(f"Collision data OK: {len(values)} first-room tile flags.")
 PY
 
-for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
+for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY PCWTPA; do
     "$Z80ASM" \
         --list="build/$name.lst" \
         --label="build/$name.lbl" \
@@ -103,7 +103,7 @@ for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCW
         "$name.ASM"
 done
 
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM build/PCWTPA.COM <<'PY'
 from pathlib import Path
 import sys
 
@@ -124,6 +124,7 @@ checks = {
     "PCWREAL.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWROOM.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWPLAY.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
+    "PCWTPA.COM": bytes((0x2A, 0x06, 0x00, 0x2B, 0xE5, 0x7C)),
 }
 
 for filename in sys.argv[1:]:
