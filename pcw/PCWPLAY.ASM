@@ -153,26 +153,36 @@ MOVE_LEFT:
         LD      (PLAYER_DIRECTION),A
         LD      A,(PLAYER_X)
         CP      02h
-        JP      C,LEFT_STEP_DONE
+        JP      C,GROUND_MOVE_BLOCKED
         SUB     02h
-        LD      (PLAYER_X),A
-LEFT_STEP_DONE:
-        CALL    ADVANCE_WALK_FRAME
-        CALL    SELECT_WALK_SPRITE
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
+        JP      GROUND_TRY_MOVE
 
 MOVE_RIGHT:
         XOR     A
         LD      (PLAYER_DIRECTION),A
         LD      A,(PLAYER_X)
         CP      0E6h                  ; final in-room position = 230
-        JP      NC,RIGHT_STEP_DONE
+        JP      NC,GROUND_MOVE_BLOCKED
         ADD     A,02h
+
+GROUND_TRY_MOVE:
+        ; Test the complete player box at the current height before moving.
+        ; This prevents walking through solid room tiles, not just the room edge.
+        LD      (CANDIDATE_X),A
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      (AIR_CHECK_Y),A
+        LD      A,(CANDIDATE_X)
+        CALL    CHECK_AIR_POSITION
+        JP      C,GROUND_MOVE_BLOCKED
+        LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
-RIGHT_STEP_DONE:
         CALL    ADVANCE_WALK_FRAME
         CALL    SELECT_WALK_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+GROUND_MOVE_BLOCKED:
+        CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
