@@ -112,11 +112,12 @@ def generate_include(pairs: list[tuple[int, int]]) -> str:
     ]
     for sprite_id in FRAME_IDS:
         # Keep frame 0x10 comfortably inside the upper TPA window rather
-        # than starting exactly at its 8000h boundary. The 672-byte source
-        # block then occupies 8400h..869Fh. build.sh verifies this placement.
+        # than starting at its 8000h boundary. Use the assembler's current
+        # address so additions to the code/background do not break alignment.
+        # build.sh verifies that this resolves to 8400h.
         if sprite_id == 0x10:
             lines.append("; Place frame 10 safely inside the upper TPA bank.")
-            lines.append("        DS      1470")
+            lines.append("        DS      08400h-$")
         lines.append(f"PCW_PLAYER_{sprite_id:02X}:")
         rows = scaled_frame(pairs, sprite_id)
         for row in rows:
