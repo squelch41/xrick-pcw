@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build a full-screen 720x256 monochrome image of the original first PC room."""
+"""Build a full-screen 720x256 monochrome image of an original PC map submap."""
 from __future__ import annotations
 
 import argparse
