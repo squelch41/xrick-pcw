@@ -17,6 +17,7 @@ python3 tools/convert_pc_sprites.py ../xrick/src/rd1/dat_spritesPC.c build/PCWSP
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWSCREEN.INC
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
+python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
 
 for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
     "$Z80ASM" \
