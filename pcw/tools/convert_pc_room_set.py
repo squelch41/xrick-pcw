@@ -65,7 +65,7 @@ def tile_flags(src: str, page: int) -> list[int]:
 def db(label: str, data: list[int]) -> list[str]:
     lines=[label+":"]
     for i in range(0,len(data),16):
-        lines.append("        DB      "+",".join(f"{v:02X}h" if v>=10 else f"{v:02X}h" for v in data[i:i+16]))
+        lines.append("        DB      "+",".join(f"0{v:02X}h" for v in data[i:i+16]))
     return lines
 
 def main() -> int:
