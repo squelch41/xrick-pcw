@@ -33,6 +33,7 @@ PRINT_HEX_BYTE:
         RRCA
         RRCA
         RRCA
+        AND     00Fh
         CALL    PRINT_HEX_NIBBLE
         POP     AF
         AND     00Fh
