@@ -24,6 +24,7 @@ the initial fixed floor height.
 - `PCWPLAY.ASM` — keyboard-controlled walking, a jump arc, airborne steering and first-room tile collision.
 - `tools/convert_pc_player.py` — converts original Rick frames to sprites matching the full-screen scale.
 - `tools/convert_pc_room.py` — expands the original map, converts the PC tiles and composites Rick into a full-screen image.
+- `tools/convert_pc_collision.py` — extracts the original PC tile flags and generates the first room's 32x24 collision grid.
 - `PORTING_NOTES.md` — initial source audit and proposed architecture.
 
 ## Sound-test status
