@@ -71,9 +71,10 @@ The current upstream repository has an `xrick/` directory at its root. Common so
 2. Use the captured Roller-RAM table to implement and verify per-scanline pixel addressing and bit order. The user has confirmed the `PCWPIX` diagnostic visually in Joyce, including drawing, clearing, and the lower/right screen edges.
 3. Extend and benchmark the tile and sprite blitters. The user has confirmed `PCWBLIT`, `PCWTRANS`, `PCWSUB` and `PCWBMP` in Joyce, including arbitrary horizontal alignment and clipping.
 4. Render original game artwork. The user has confirmed that `PCWROOM` displays the first original PC room and Rick's idle sprite correctly across the full 720x256 PCW raster.
-5. Add the first interactive movement test. `PCWPLAY` uses the original two-pixel left/right step and the original five-frame walk cycles, with the background restored before each move. Its build and Joyce test are pending.
-6. Add jumping and tile-based collision, then replace full-screen redraws with a faster dirty-rectangle background restore.
-7. Add scrolling, ladders, entities, sound effects and the remaining game logic.
+5. Add the first interactive movement test. `PCWPLAY` uses the original two-pixel left/right step and the original five-frame walk cycles. The user has confirmed that walking in both directions now works without screen corruption.
+6. Add the first jump test. `PCWPLAY` uses the original PC jump impulse (-0x0580 in 8.8 game coordinates), gravity (+0x0080 per update), and jump poses 0x06/0x15. These are scaled to the PCW's 720x256 display; W runs a complete vertical arc and returns to the fixed standing height. This version does not yet implement tile/platform collision or air steering.
+7. Add tile-based collision and horizontal steering while airborne; then replace full-screen redraws with a faster dirty-rectangle background restore.
+8. Add scrolling, ladders, entities, sound effects and the remaining game logic.
 
 ## References
 
