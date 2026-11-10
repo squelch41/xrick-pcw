@@ -48,7 +48,7 @@ def visible_tiles(src: str, submap: int, frow: int) -> tuple[list[int], int]:
             for _ in range(4):
                 for _ in range(4):
                     grid[row][col]=chunk[pos]; col+=1; pos+=1
-                row+=1; col-=4
+                row+=1; col-=3
             row-=4; col+=4
         row+=4; col=0
     return [v for line in grid[8:32] for v in line], page
