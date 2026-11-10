@@ -7,6 +7,7 @@
 ;   I = stand still / restore idle pose
 ;   B = redraw background only (diagnostic)
 ;   P = draw the current player only (diagnostic; use after B)
+;   1..5 = display an individual left-facing walk frame at the start position
 ;   Q = clear the display and return to CP/M
 ;
 ; This first playable milestone deliberately uses the original PC game's
@@ -79,6 +80,18 @@ MAIN_LOOP:
         JP      Z,DRAW_PLAYER_ONLY
         CP      070h                  ; p
         JP      Z,DRAW_PLAYER_ONLY
+        CP      031h                  ; 1..5: inspect individual left walk frames
+        JP      C,MAIN_LOOP
+        CP      035h
+        JP      NC,MAIN_LOOP
+        SUB     030h
+        LD      (WALK_FRAME),A
+        LD      A,01h
+        LD      (PLAYER_DIRECTION),A
+        LD      A,08h
+        LD      (PLAYER_X),A
+        CALL    SELECT_WALK_SPRITE
+        CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
 MOVE_LEFT:
