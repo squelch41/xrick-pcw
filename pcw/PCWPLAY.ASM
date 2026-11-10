@@ -49,6 +49,8 @@ START:
         LD      HL,06400h
         LD      (PLAYER_Y_FP),HL
         CALL    SELECT_IDLE_SPRITE
+        LD      A,00h
+        CALL    SET_ROOM_DATA
 
         CALL    DRAW_BACKGROUND
         CALL    DRAW_PLAYER
@@ -153,6 +155,7 @@ MOVE_LEFT:
         LD      A,(PLAYER_X)
         CP      02h
         JP      C,GROUND_MOVE_BLOCKED
+        JP      Z,GROUND_TRY_PREVIOUS_ROOM
         SUB     02h
         JP      GROUND_TRY_MOVE
 
@@ -160,8 +163,8 @@ MOVE_RIGHT:
         XOR     A
         LD      (PLAYER_DIRECTION),A
         LD      A,(PLAYER_X)
-        CP      0E6h                  ; final in-room position = 230
-        JP      NC,GROUND_MOVE_BLOCKED
+        CP      0E6h                  ; crossing from x=230 enters next submap
+        JP      NC,GROUND_TRY_NEXT_ROOM
         ADD     A,02h
 
 GROUND_TRY_MOVE:
@@ -186,6 +189,22 @@ GROUND_TRY_MOVE:
         CALL    START_FALL
 
 GROUND_HAS_SUPPORT:
+        CALL    ADVANCE_WALK_FRAME
+        CALL    SELECT_WALK_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+GROUND_TRY_NEXT_ROOM:
+        CALL    TRANSITION_RIGHT
+        JP      C,GROUND_MOVE_BLOCKED
+        CALL    ADVANCE_WALK_FRAME
+        CALL    SELECT_WALK_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+GROUND_TRY_PREVIOUS_ROOM:
+        CALL    TRANSITION_LEFT
+        JP      C,GROUND_MOVE_BLOCKED
         CALL    ADVANCE_WALK_FRAME
         CALL    SELECT_WALK_SPRITE
         CALL    REDRAW_SCENE
@@ -366,6 +385,7 @@ AIR_TURN_LEFT:
         LD      A,(PLAYER_X)
         CP      02h
         RET     C
+        JP      Z,AIR_TRY_PREVIOUS_ROOM
         SUB     02h
         JP      AIR_TRY_MOVE
 
@@ -376,8 +396,16 @@ AIR_TURN_RIGHT:
         LD      (PLAYER_SPRITE_PTR),HL
         LD      A,(PLAYER_X)
         CP      0E6h
-        RET     NC
+        JP      NC,AIR_TRY_NEXT_ROOM
         ADD     A,02h
+
+AIR_TRY_NEXT_ROOM:
+        CALL    TRANSITION_RIGHT
+        RET
+
+AIR_TRY_PREVIOUS_ROOM:
+        CALL    TRANSITION_LEFT
+        RET
 
 AIR_TRY_MOVE:
         LD      (CANDIDATE_X),A
@@ -507,7 +535,7 @@ CHECK_AIR_TILE:
         LD      E,C
         LD      D,00h
         ADD     HL,DE
-        LD      DE,PCW_ROOM_FLAGS
+        LD      DE,(ROOM_FLAGS_PTR)
         ADD     HL,DE
         LD      A,(HL)
         AND     070h
@@ -517,6 +545,185 @@ AIR_TILE_BLOCKED:
         RET
 AIR_TILE_CLEAR:
         OR      A
+        RET
+
+; Select the connector table belonging to the current room.
+GET_ROOM_CONNECTORS:
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      Z,ROOM0_CONNECTORS_PTR
+        CP      01h
+        JP      Z,ROOM1_CONNECTORS_PTR
+        LD      HL,PCW_ROOM2_CONNECTORS
+        RET
+ROOM0_CONNECTORS_PTR:
+        LD      HL,PCW_ROOM0_CONNECTORS
+        RET
+ROOM1_CONNECTORS_PTR:
+        LD      HL,PCW_ROOM1_CONNECTORS
+        RET
+
+; The right connector is record 1 (destination at offset 6); the left
+; connector is record 0 (destination at offset 2). FF means no connection.
+TRANSITION_RIGHT:
+        CALL    GET_ROOM_CONNECTORS
+        LD      DE,0006h
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      03h                  ; only the first three rooms are loaded
+        JP      NC,ROOM_TRANSITION_BLOCKED
+        CALL    SET_ROOM_DATA
+        LD      A,04h                 ; original PC re-entry X from the left
+        LD      (PLAYER_X),A
+        OR      A
+        RET
+
+TRANSITION_LEFT:
+        CALL    GET_ROOM_CONNECTORS
+        LD      DE,0002h
+        ADD     HL,DE
+        LD      A,(HL)
+        CP      03h                  ; includes FF sentinel / no previous room
+        JP      NC,ROOM_TRANSITION_BLOCKED
+        CALL    SET_ROOM_DATA
+        LD      A,0E2h                ; original PC re-entry X from the right
+        LD      (PLAYER_X),A
+        OR      A
+        RET
+
+ROOM_TRANSITION_BLOCKED:
+        SCF
+        RET
+
+; A = destination submap. Select its collision flags and decompress its
+; pre-rendered 720x256 background into the reusable PCW_BACKGROUND buffer.
+SET_ROOM_DATA:
+        LD      (ROOM_INDEX),A
+        CALL    SELECT_ROOM_FLAGS
+        CALL    DECOMPRESS_ROOM_BACKGROUND
+        RET
+
+SELECT_ROOM_FLAGS:
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      Z,ROOM0_FLAGS_PTR
+        CP      01h
+        JP      Z,ROOM1_FLAGS_PTR
+        LD      HL,PCW_ROOM2_FLAGS
+        JP      ROOM_FLAGS_PTR_STORE
+ROOM0_FLAGS_PTR:
+        LD      HL,PCW_ROOM0_FLAGS
+        JP      ROOM_FLAGS_PTR_STORE
+ROOM1_FLAGS_PTR:
+        LD      HL,PCW_ROOM1_FLAGS
+ROOM_FLAGS_PTR_STORE:
+        LD      (ROOM_FLAGS_PTR),HL
+        RET
+
+; 12-bit LZSS decoder. Control bits are consumed MSB first; a set bit is
+; one literal byte, otherwise the token is a backward copy of 3..18 bytes.
+DECOMPRESS_ROOM_BACKGROUND:
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      Z,ROOM0_BG_PTR
+        CP      01h
+        JP      Z,ROOM1_BG_PTR
+        LD      HL,PCW_ROOM2_BG_COMP
+        JP      ROOM_BG_PTR_STORE
+ROOM0_BG_PTR:
+        LD      HL,PCW_ROOM0_BG_COMP
+        JP      ROOM_BG_PTR_STORE
+ROOM1_BG_PTR:
+        LD      HL,PCW_ROOM1_BG_COMP
+ROOM_BG_PTR_STORE:
+        LD      (BG_COMP_SOURCE),HL
+        LD      DE,PCW_BACKGROUND
+        LD      BC,05A00h              ; 23,040 bytes = 720x256 / 8
+        XOR     A
+        LD      (BG_BITS_LEFT),A
+
+BG_NEXT_TOKEN:
+        LD      A,(BG_BITS_LEFT)
+        OR      A
+        JP      NZ,BG_HAVE_CONTROL
+        LD      HL,(BG_COMP_SOURCE)
+        LD      A,(HL)
+        INC     HL
+        LD      (BG_COMP_SOURCE),HL
+        LD      (BG_CONTROL),A
+        LD      A,08h
+        LD      (BG_BITS_LEFT),A
+BG_HAVE_CONTROL:
+        LD      A,(BG_CONTROL)
+        RLCA
+        LD      (BG_CONTROL),A
+        LD      A,(BG_BITS_LEFT)
+        DEC     A
+        LD      (BG_BITS_LEFT),A
+        JP      C,BG_LITERAL
+
+        ; Back-reference: low offset byte, then high offset nibble / length nibble.
+        LD      HL,(BG_COMP_SOURCE)
+        LD      A,(HL)
+        INC     HL
+        LD      (BG_OFFSET_LOW),A
+        LD      A,(HL)
+        INC     HL
+        LD      (BG_COMP_SOURCE),HL
+        LD      (BG_TOKEN_META),A
+        AND     00Fh
+        ADD     A,03h
+        LD      (BG_RUN_LEFT),A
+        LD      A,(BG_TOKEN_META)
+        AND     0F0h
+        RRCA
+        RRCA
+        RRCA
+        RRCA
+        LD      (BG_OFFSET_HIGH),A
+
+        ; Source = current destination - (encoded offset + 1).
+        LD      A,(BG_OFFSET_LOW)
+        LD      L,A
+        LD      A,(BG_OFFSET_HIGH)
+        LD      H,A
+        INC     HL
+        PUSH    DE
+        EX      DE,HL
+        OR      A
+        SBC     HL,DE
+        LD      (BG_COPY_SOURCE),HL
+        POP     DE
+
+BG_COPY_LOOP:
+        LD      HL,(BG_COPY_SOURCE)
+        LD      A,(HL)
+        INC     HL
+        LD      (BG_COPY_SOURCE),HL
+        LD      (DE),A
+        INC     DE
+        DEC     BC
+        LD      A,B
+        OR      C
+        JP      Z,BG_DECOMPRESS_DONE
+        LD      A,(BG_RUN_LEFT)
+        DEC     A
+        LD      (BG_RUN_LEFT),A
+        JP      NZ,BG_COPY_LOOP
+        JP      BG_NEXT_TOKEN
+
+BG_LITERAL:
+        LD      HL,(BG_COMP_SOURCE)
+        LD      A,(HL)
+        INC     HL
+        LD      (BG_COMP_SOURCE),HL
+        LD      (DE),A
+        INC     DE
+        DEC     BC
+        LD      A,B
+        OR      C
+        JP      NZ,BG_NEXT_TOKEN
+BG_DECOMPRESS_DONE:
         RET
 
 ; Diagnostic split: B redraws only the room, P draws only the current
@@ -1001,6 +1208,26 @@ WALK_FRAME:
         DB      01h                    ; 1..5
 PLAYER_SPRITE_PTR:
         DW      0000h
+ROOM_INDEX:
+        DB      00h
+ROOM_FLAGS_PTR:
+        DW      0000h
+BG_COMP_SOURCE:
+        DW      0000h
+BG_COPY_SOURCE:
+        DW      0000h
+BG_CONTROL:
+        DB      00h
+BG_BITS_LEFT:
+        DB      00h
+BG_OFFSET_LOW:
+        DB      00h
+BG_OFFSET_HIGH:
+        DB      00h
+BG_TOKEN_META:
+        DB      00h
+BG_RUN_LEFT:
+        DB      00h
 PLAYER_SCREEN_X:
         DW      0000h
 BANK_NO:
@@ -1052,9 +1279,12 @@ PLAYER_BUFFER:
 RRAM_TABLE:
         DS      512
 
-        INCLUDE "build/PCWPLAYBG.INC"
+; Reusable full-screen raster, rebuilt from a compressed room image on entry.
+PCW_BACKGROUND:
+        DS      23040
+
         INCLUDE "build/PCWPLAYSPRITES.INC"
-        INCLUDE "build/PCWPLAYCOLLISION.INC"
         INCLUDE "build/PCWROOMSET.INC"
+        INCLUDE "build/PCWROOMBACKGROUND.INC"
 
         END
