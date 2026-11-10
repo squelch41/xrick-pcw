@@ -2,8 +2,8 @@
 ; First interactive Rick Dangerous room for the Amstrad PCW 9256.
 ;
 ; Controls:
-;   S = move left (one original game step)
-;   D = move right (one original game step)
+;   S = move left (one original game step; also steers left in the air)
+;   D = move right (one original game step; also steers right in the air)
 ;   W = jump (runs the full jump arc and lands)
 ;   I = stand still / restore idle pose
 ;   B = redraw background only (diagnostic)
