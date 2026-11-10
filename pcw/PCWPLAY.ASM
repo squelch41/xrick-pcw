@@ -8,7 +8,7 @@
 ;   I = stand still / restore idle pose
 ;   B = redraw background only (diagnostic)
 ;   P = draw the current player only (diagnostic; use after B)
- ;  1..5 = display an individual left-facing walk frame at the start position
+;   1..5 = display an individual left-facing walk frame at the start position
 ;   V = draw left-facing frame 5 directly, bypassing frame selection
 ;   Q = clear the display and return to CP/M
 ;
