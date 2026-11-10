@@ -297,9 +297,31 @@ JUMP_UPDATE:
         ADD     HL,DE
         LD      (PLAYER_Y_FP),HL
 
-        ; The first-room floor is not at one universal height. Check the
-        ; candidate body against the actual tile map while moving in either
-        ; direction, so platforms can stop a fall and ceilings stop a jump.
+        ; The first submap extends below this viewport. In the right-hand
+        ; drop shaft, scroll to the next pre-rendered eight-tile view before
+        ; Rick reaches the lower edge. After the fourth view, row 38h is the
+        ; connector into submap 1.
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      NZ,JUMP_SCROLL_THRESHOLD
+        LD      A,(ROOM_SCROLL)
+        CP      03h
+        JP      NZ,JUMP_SCROLL_THRESHOLD
+        LD      A,H
+        CP      0ABh                  ; connector row 38h in the fourth view
+        JP      C,JUMP_SCROLL_THRESHOLD
+        CALL    TRY_DROP_ROOM_TRANSITION
+        JP      C,JUMP_SCROLL_THRESHOLD
+        JP      MAIN_LOOP
+
+JUMP_SCROLL_THRESHOLD:
+        LD      A,H
+        CP      0BBh                  ; scroll when Rick reaches y=187
+        JP      C,JUMP_CHECK_BOTTOM
+        CALL    TRY_ROOM_SCROLL
+        JP      C,JUMP_DRAW_FRAME
+
+JUMP_CHECK_BOTTOM:
         LD      A,H
         CP      0E4h                  ; keep the 28-pixel sprite on-screen
         JP      NC,JUMP_BOTTOM_LIMIT
@@ -609,6 +631,9 @@ TRY_DROP_ROOM_TRANSITION:
         LD      A,(ROOM_INDEX)
         OR      A
         JP      NZ,DROP_EXIT_NOT_FOUND
+        LD      A,(ROOM_SCROLL)
+        CP      03h                  ; connector row 38h is in the fourth view
+        JP      NZ,DROP_EXIT_NOT_FOUND
         LD      A,(PLAYER_X)
         CP      0BBh                  ; first possible origin: 192 - 5
         JP      C,DROP_EXIT_NOT_FOUND
@@ -635,10 +660,40 @@ DROP_EXIT_NOT_FOUND:
         SCF
         RET
 
+; Advance the tall first submap by eight source tile rows. The PCW version
+; switches between pre-rendered views but shifts Rick upward by the same
+; 85 screen pixels, preserving his position relative to the map.
+TRY_ROOM_SCROLL:
+        LD      A,(ROOM_INDEX)
+        OR      A
+        RET     NZ
+        LD      A,(PLAYER_X)
+        CP      0BBh
+        RET     C
+        CP      0CFh
+        RET     NC
+        LD      A,(ROOM_SCROLL)
+        CP      03h
+        RET     NC
+        INC     A
+        LD      (ROOM_SCROLL),A
+        LD      HL,(PLAYER_Y_FP)
+        LD      DE,0FFABh              ; subtract 85 pixels (8 x 8 source rows)
+        ADD     HL,DE
+        LD      (PLAYER_Y_FP),HL
+        LD      A,H
+        LD      (PLAYER_SCREEN_Y),A
+        CALL    SELECT_ROOM_FLAGS
+        CALL    DECOMPRESS_ROOM_BACKGROUND
+        SCF
+        RET
+
 ; A = destination submap. Select its collision flags and decompress its
 ; pre-rendered 720x256 background into the reusable PCW_BACKGROUND buffer.
 SET_ROOM_DATA:
         LD      (ROOM_INDEX),A
+        XOR     A
+        LD      (ROOM_SCROLL),A
         CALL    SELECT_ROOM_FLAGS
         CALL    DECOMPRESS_ROOM_BACKGROUND
         RET
@@ -646,13 +701,29 @@ SET_ROOM_DATA:
 SELECT_ROOM_FLAGS:
         LD      A,(ROOM_INDEX)
         OR      A
-        JP      Z,ROOM0_FLAGS_PTR
+        JP      Z,ROOM0_FLAGS_SELECT
         CP      01h
         JP      Z,ROOM1_FLAGS_PTR
         LD      HL,PCW_ROOM2_FLAGS
         JP      ROOM_FLAGS_PTR_STORE
+ROOM0_FLAGS_SELECT:
+        LD      A,(ROOM_SCROLL)
+        OR      A
+        JP      Z,ROOM0_FLAGS_PTR
+        CP      01h
+        JP      Z,ROOM0_SCROLL1_FLAGS_PTR
+        CP      02h
+        JP      Z,ROOM0_SCROLL2_FLAGS_PTR
+        LD      HL,PCW_ROOM0_SCROLL3_FLAGS
+        JP      ROOM_FLAGS_PTR_STORE
 ROOM0_FLAGS_PTR:
         LD      HL,PCW_ROOM0_FLAGS
+        JP      ROOM_FLAGS_PTR_STORE
+ROOM0_SCROLL1_FLAGS_PTR:
+        LD      HL,PCW_ROOM0_SCROLL1_FLAGS
+        JP      ROOM_FLAGS_PTR_STORE
+ROOM0_SCROLL2_FLAGS_PTR:
+        LD      HL,PCW_ROOM0_SCROLL2_FLAGS
         JP      ROOM_FLAGS_PTR_STORE
 ROOM1_FLAGS_PTR:
         LD      HL,PCW_ROOM1_FLAGS
@@ -665,13 +736,29 @@ ROOM_FLAGS_PTR_STORE:
 DECOMPRESS_ROOM_BACKGROUND:
         LD      A,(ROOM_INDEX)
         OR      A
-        JP      Z,ROOM0_BG_PTR
+        JP      Z,ROOM0_BG_SELECT
         CP      01h
         JP      Z,ROOM1_BG_PTR
         LD      HL,PCW_ROOM2_BG_COMP
         JP      ROOM_BG_PTR_STORE
+ROOM0_BG_SELECT:
+        LD      A,(ROOM_SCROLL)
+        OR      A
+        JP      Z,ROOM0_BG_PTR
+        CP      01h
+        JP      Z,ROOM0_SCROLL1_BG_PTR
+        CP      02h
+        JP      Z,ROOM0_SCROLL2_BG_PTR
+        LD      HL,PCW_ROOM0_SCROLL3_BG_COMP
+        JP      ROOM_BG_PTR_STORE
 ROOM0_BG_PTR:
         LD      HL,PCW_ROOM0_BG_COMP
+        JP      ROOM_BG_PTR_STORE
+ROOM0_SCROLL1_BG_PTR:
+        LD      HL,PCW_ROOM0_SCROLL1_BG_COMP
+        JP      ROOM_BG_PTR_STORE
+ROOM0_SCROLL2_BG_PTR:
+        LD      HL,PCW_ROOM0_SCROLL2_BG_COMP
         JP      ROOM_BG_PTR_STORE
 ROOM1_BG_PTR:
         LD      HL,PCW_ROOM1_BG_COMP
@@ -1250,6 +1337,8 @@ PLAYER_SPRITE_PTR:
         DW      0000h
 ROOM_INDEX:
         DB      00h
+ROOM_SCROLL:
+        DB      00h                    ; first-room viewport: 0..3
 ROOM_FLAGS_PTR:
         DW      0000h
 BG_COMP_SOURCE:
