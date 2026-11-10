@@ -24,7 +24,7 @@ from pathlib import Path
 import sys
 lines = Path(sys.argv[1]).read_text(encoding='ascii').splitlines()
 for room in range(3):
-    for kind, expected in (('FLAGS', 768), ('CONNECTORS', 12)):
+    for kind, expected in (('FLAGS', 384), ('CONNECTORS', 12)):
         label = f'PCW_ROOM{room}_{kind}:'
         if lines.count(label) != 1:
             raise SystemExit(f'missing or duplicate {label}')
