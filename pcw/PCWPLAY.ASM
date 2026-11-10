@@ -82,7 +82,7 @@ MAIN_LOOP:
         JP      Z,DRAW_PLAYER_ONLY
         CP      031h                  ; 1..5: inspect individual left walk frames
         JP      C,MAIN_LOOP
-        CP      035h
+        CP      036h                  ; accept 1 through 5 inclusive
         JP      NC,MAIN_LOOP
         SUB     030h
         LD      (WALK_FRAME),A
