@@ -176,14 +176,13 @@ GROUND_TRY_MOVE:
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
 
-        ; If there is no supporting tile immediately below the feet, start
-        ; a gravity-driven fall instead of leaving Rick suspended in mid-air.
+        ; Check only the foot row for floor support. A full-body check one
+        ; scanline lower can mistake the side wall of a hole for a floor.
         LD      A,(PLAYER_SCREEN_Y)
-        INC     A
-        LD      (AIR_CHECK_Y),A
-        LD      A,(PLAYER_X)
-        CALL    CHECK_AIR_POSITION
-        JP      NC,GROUND_HAS_SUPPORT
+        ADD     A,28
+        CALL    SCREEN_TO_MAP_ROW
+        CALL    CHECK_AIR_ROW
+        JP      C,GROUND_HAS_SUPPORT
         CALL    START_FALL
 
 GROUND_HAS_SUPPORT:
