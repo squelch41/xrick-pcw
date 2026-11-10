@@ -2,6 +2,7 @@
 """Generate the first-room tile collision flags for the PCW player test."""
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -78,7 +79,7 @@ def load_pc_tile_flags(source: str, page: int) -> list[int]:
     return expanded
 
 
-def load_visible_tile_map(source: str) -> tuple[list[list[int]], int]:
+def load_visible_tile_map(source: str, submap_number: int | None = None, frow: int | None = None) -> tuple[list[list[int]], int]:
     clean = strip_comments(source)
     blocks = parse_values(extract_initializer(clean, "map_blocks"))
     block_numbers = parse_values(extract_initializer(clean, "map_bnums"))
@@ -90,14 +91,20 @@ def load_visible_tile_map(source: str) -> tuple[list[list[int]], int]:
     if len(map_starts) < 5 or len(submaps) < 4:
         raise ValueError("first-map metadata is incomplete")
 
-    _start_x, _start_y, map_frow, submap_number, _tune = map_starts[:5]
+    _start_x, _start_y, map_frow, map_submap_number, _tune = map_starts[:5]
+    if submap_number is None:
+        submap_number = map_submap_number
+    if frow is None:
+        frow = map_frow
+    if submap_number < 0:
+        raise ValueError("submap number must be non-negative")
     submap_base = submap_number * 4
     page = submaps[submap_base]
     block_base = submaps[submap_base + 1]
     if page not in (0, 1):
-        raise ValueError(f"first room uses unexpected tile page {page}")
+        raise ValueError(f"selected submap uses unexpected tile page {page}")
 
-    block_index = block_base + ((2 * map_frow) & 0xFFF8)
+    block_index = block_base + ((2 * frow) & 0xFFF8)
     tile_map = [[0] * MAP_COLS for _ in range(44)]
     row = col = 0
     for _block_row in range(BLOCK_ROWS):
@@ -152,17 +159,19 @@ def generate_include(flags: list[int]) -> str:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print(
-            f"usage: {Path(sys.argv[0]).name} dat_maps.c output.inc",
-            file=sys.stderr,
-        )
-        return 2
-    source_path, output_path = map(Path, sys.argv[1:])
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("source", type=Path, help="path to xrick/src/rd1/dat_maps.c")
+    parser.add_argument("output", type=Path, help="output Z80 assembler include")
+    parser.add_argument("--submap", type=int, default=None,
+                        help="select a submap number instead of map 0's starting submap")
+    parser.add_argument("--frow", type=lambda value: int(value, 0), default=None,
+                        help="override the map's first-row offset (e.g. 0xA0)")
+    args = parser.parse_args()
+    source_path, output_path = args.source, args.output
 
     try:
         source = source_path.read_text(encoding="utf-8")
-        visible, page = load_visible_tile_map(source)
+        visible, page = load_visible_tile_map(source, args.submap, args.frow)
         tile_flags = load_pc_tile_flags(strip_comments(source), page)
         collision = [tile_flags[tile] for row in visible for tile in row]
         output = generate_include(collision)
@@ -175,7 +184,8 @@ def main() -> int:
     solid = sum(bool(value & 0x70) for value in collision)
     lethal = sum(bool(value & 0x04) for value in collision)
     print(
-        f"Generated first-room collision grid: 32x24, "
+        f"Generated map 0 submap {args.submap if args.submap is not None else 'default'} "
+        f"(frow {args.frow if args.frow is not None else 'default'}) collision grid: 32x24, "
         f"{solid} blocking cells, {lethal} lethal cells -> {output_path}"
     )
     return 0
