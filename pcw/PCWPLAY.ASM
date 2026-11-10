@@ -683,8 +683,38 @@ TRY_ROOM_SCROLL:
         LD      (PLAYER_Y_FP),HL
         LD      A,H
         LD      (PLAYER_SCREEN_Y),A
-        CALL    SELECT_ROOM_FLAGS
-        CALL    DECOMPRESS_ROOM_BACKGROUND
+
+        ; Move the existing 256-line raster up 85 lines, then unpack only
+        ; the newly exposed 85-line strip into its bottom.
+        LD      HL,PCW_BACKGROUND+01DE2h
+        LD      DE,PCW_BACKGROUND
+        LD      BC,03C1Eh
+        LDIR
+
+        ; Keep the collision viewport aligned: shift up eight tile rows,
+        ; then append the next eight-row collision strip.
+        LD      HL,ROOM_FLAGS_BUFFER+0100h
+        LD      DE,ROOM_FLAGS_BUFFER
+        LD      BC,0200h
+        LDIR
+        LD      A,(ROOM_SCROLL)
+        CP      01h
+        JP      Z,ROOM_SCROLL_FLAGS_1
+        CP      02h
+        JP      Z,ROOM_SCROLL_FLAGS_2
+        LD      HL,PCW_ROOM0_SCROLL3_FLAGS
+        JP      ROOM_SCROLL_FLAGS_COPY
+ROOM_SCROLL_FLAGS_1:
+        LD      HL,PCW_ROOM0_SCROLL1_FLAGS
+        JP      ROOM_SCROLL_FLAGS_COPY
+ROOM_SCROLL_FLAGS_2:
+        LD      HL,PCW_ROOM0_SCROLL2_FLAGS
+ROOM_SCROLL_FLAGS_COPY:
+        LD      DE,ROOM_FLAGS_BUFFER+0200h
+        LD      BC,0100h
+        LDIR
+
+        CALL    DECOMPRESS_ROOM_SCROLL_STRIP
         SCF
         RET
 ROOM_SCROLL_NOT_DONE:
@@ -698,6 +728,16 @@ SET_ROOM_DATA:
         XOR     A
         LD      (ROOM_SCROLL),A
         CALL    SELECT_ROOM_FLAGS
+        ; Room 0 uses a writable 24x32 flag buffer so eight-row scrolls can
+        ; shift its collision data without storing three full extra maps.
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      NZ,SET_ROOM_BACKGROUND
+        LD      HL,PCW_ROOM0_FLAGS
+        LD      DE,ROOM_FLAGS_BUFFER
+        LD      BC,0300h
+        LDIR
+SET_ROOM_BACKGROUND:
         CALL    DECOMPRESS_ROOM_BACKGROUND
         RET
 
@@ -710,23 +750,7 @@ SELECT_ROOM_FLAGS:
         LD      HL,PCW_ROOM2_FLAGS
         JP      ROOM_FLAGS_PTR_STORE
 ROOM0_FLAGS_SELECT:
-        LD      A,(ROOM_SCROLL)
-        OR      A
-        JP      Z,ROOM0_FLAGS_PTR
-        CP      01h
-        JP      Z,ROOM0_SCROLL1_FLAGS_PTR
-        CP      02h
-        JP      Z,ROOM0_SCROLL2_FLAGS_PTR
-        LD      HL,PCW_ROOM0_SCROLL3_FLAGS
-        JP      ROOM_FLAGS_PTR_STORE
-ROOM0_FLAGS_PTR:
-        LD      HL,PCW_ROOM0_FLAGS
-        JP      ROOM_FLAGS_PTR_STORE
-ROOM0_SCROLL1_FLAGS_PTR:
-        LD      HL,PCW_ROOM0_SCROLL1_FLAGS
-        JP      ROOM_FLAGS_PTR_STORE
-ROOM0_SCROLL2_FLAGS_PTR:
-        LD      HL,PCW_ROOM0_SCROLL2_FLAGS
+        LD      HL,ROOM_FLAGS_BUFFER
         JP      ROOM_FLAGS_PTR_STORE
 ROOM1_FLAGS_PTR:
         LD      HL,PCW_ROOM1_FLAGS
@@ -734,34 +758,17 @@ ROOM_FLAGS_PTR_STORE:
         LD      (ROOM_FLAGS_PTR),HL
         RET
 
-; 12-bit LZSS decoder. Control bits are consumed MSB first; a set bit is
-; one literal byte, otherwise the token is a backward copy of 3..18 bytes.
+; Full-room images are decoded into the 720x256 background buffer.
 DECOMPRESS_ROOM_BACKGROUND:
         LD      A,(ROOM_INDEX)
         OR      A
-        JP      Z,ROOM0_BG_SELECT
+        JP      Z,ROOM0_BG_PTR
         CP      01h
         JP      Z,ROOM1_BG_PTR
         LD      HL,PCW_ROOM2_BG_COMP
         JP      ROOM_BG_PTR_STORE
-ROOM0_BG_SELECT:
-        LD      A,(ROOM_SCROLL)
-        OR      A
-        JP      Z,ROOM0_BG_PTR
-        CP      01h
-        JP      Z,ROOM0_SCROLL1_BG_PTR
-        CP      02h
-        JP      Z,ROOM0_SCROLL2_BG_PTR
-        LD      HL,PCW_ROOM0_SCROLL3_BG_COMP
-        JP      ROOM_BG_PTR_STORE
 ROOM0_BG_PTR:
         LD      HL,PCW_ROOM0_BG_COMP
-        JP      ROOM_BG_PTR_STORE
-ROOM0_SCROLL1_BG_PTR:
-        LD      HL,PCW_ROOM0_SCROLL1_BG_COMP
-        JP      ROOM_BG_PTR_STORE
-ROOM0_SCROLL2_BG_PTR:
-        LD      HL,PCW_ROOM0_SCROLL2_BG_COMP
         JP      ROOM_BG_PTR_STORE
 ROOM1_BG_PTR:
         LD      HL,PCW_ROOM1_BG_COMP
@@ -771,7 +778,32 @@ ROOM_BG_PTR_STORE:
         LD      BC,05A00h              ; 23,040 bytes = 720x256 / 8
         XOR     A
         LD      (BG_BITS_LEFT),A
+        JP      BG_NEXT_TOKEN
 
+; Scroll strips contain 85 lines (7,650 bytes) and are appended at line 171.
+DECOMPRESS_ROOM_SCROLL_STRIP:
+        LD      A,(ROOM_SCROLL)
+        CP      01h
+        JP      Z,ROOM0_SCROLL1_BG_PTR
+        CP      02h
+        JP      Z,ROOM0_SCROLL2_BG_PTR
+        LD      HL,PCW_ROOM0_SCROLL3_BG_COMP
+        JP      ROOM_SCROLL_BG_PTR_STORE
+ROOM0_SCROLL1_BG_PTR:
+        LD      HL,PCW_ROOM0_SCROLL1_BG_COMP
+        JP      ROOM_SCROLL_BG_PTR_STORE
+ROOM0_SCROLL2_BG_PTR:
+        LD      HL,PCW_ROOM0_SCROLL2_BG_COMP
+ROOM_SCROLL_BG_PTR_STORE:
+        LD      (BG_COMP_SOURCE),HL
+        LD      DE,PCW_BACKGROUND+03C1Eh
+        LD      BC,01DE2h              ; 85 * 90 bytes
+        XOR     A
+        LD      (BG_BITS_LEFT),A
+        JP      BG_NEXT_TOKEN
+
+; 12-bit LZSS decoder. Control bits are consumed MSB first; a set bit is
+; one literal byte, otherwise the token is a backward copy of 3..18 bytes.
 BG_NEXT_TOKEN:
         LD      A,(BG_BITS_LEFT)
         OR      A
@@ -1344,6 +1376,8 @@ ROOM_SCROLL:
         DB      00h                    ; first-room viewport: 0..3
 ROOM_FLAGS_PTR:
         DW      0000h
+ROOM_FLAGS_BUFFER:
+        DS      768
 BG_COMP_SOURCE:
         DW      0000h
 BG_COPY_SOURCE:
