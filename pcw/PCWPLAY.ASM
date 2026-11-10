@@ -385,9 +385,9 @@ CHECK_AIR_POSITION:
 SCREEN_TO_MAP_ROW:
         LD      L,A
         LD      H,00h
-        ADD     HL,HL                 ; 2*y
         LD      D,H
-        LD      E,L
+        LD      E,L                   ; DE = y
+        ADD     HL,HL                 ; 2*y
         ADD     HL,DE                 ; 3*y
         LD      B,05h
 SCREEN_ROW_SHIFT:
