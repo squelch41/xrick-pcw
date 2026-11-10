@@ -111,6 +111,13 @@ def generate_include(pairs: list[tuple[int, int]]) -> str:
         "",
     ]
     for sprite_id in FRAME_IDS:
+        # In the current PCWPLAY layout, frame 0x10 would begin at 7E42h.
+        # Its 672-byte LDIR source would therefore cross the 8000h bank
+        # window boundary. Pad to 8000h so the complete frame is contiguous
+        # within the upper TPA bank. build.sh checks this exact placement.
+        if sprite_id == 0x10:
+            lines.append("; Align frame 10 to the 8000h TPA bank boundary.")
+            lines.append("        DS      446")
         lines.append(f"PCW_PLAYER_{sprite_id:02X}:")
         rows = scaled_frame(pairs, sprite_id)
         for row in rows:
