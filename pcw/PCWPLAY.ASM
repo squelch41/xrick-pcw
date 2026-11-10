@@ -206,8 +206,12 @@ START_JUMP_FRAME:
         LD      (JUMP_VELOCITY),HL
 
 JUMP_UPDATE:
-        ; Integrate vertical position using the current velocity.
+        ; Poll once per airborne frame so S/D can steer Rick in mid-air.
+        CALL    JUMP_POLL_INPUT
+
+        ; Integrate vertical position, retaining the old value for collision.
         LD      HL,(PLAYER_Y_FP)
+        LD      (OLD_PLAYER_Y_FP),HL
         LD      DE,(JUMP_VELOCITY)
         ADD     HL,DE
         LD      (PLAYER_Y_FP),HL
@@ -216,10 +220,28 @@ JUMP_UPDATE:
         LD      A,H
         CP      100
         JP      NC,JUMP_LANDED
+
+        ; Check the candidate body against the first room's real tile flags.
+        LD      (NEW_SCREEN_Y),A
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        JP      C,JUMP_HIT_OBSTACLE
+        LD      A,(NEW_SCREEN_Y)
         LD      (PLAYER_SCREEN_Y),A
+        JP      JUMP_DRAW_FRAME
+
+JUMP_HIT_OBSTACLE:
+        ; Stop upward movement at a solid tile. Gravity then makes Rick fall.
+        LD      HL,(OLD_PLAYER_Y_FP)
+        LD      (PLAYER_Y_FP),HL
+        LD      HL,0000h
+        LD      (JUMP_VELOCITY),HL
+
+JUMP_DRAW_FRAME:
         CALL    REDRAW_SCENE
 
-        ; Original PC gravity is +0.5 game pixels/update. Scale it by 4/3.
+        ; Original PC gravity is +0.5 game pixels/update, scaled for the PCW.
         LD      HL,(JUMP_VELOCITY)
         LD      DE,000AAh
         ADD     HL,DE
@@ -244,6 +266,185 @@ JUMP_DELAY_LOOP:
         LD      A,B
         OR      C
         JP      NZ,JUMP_DELAY_LOOP
+        RET
+
+; Read one key during each jump frame. S/D adjust X by the original two-pixel
+; game step and select the matching jump pose. Tile flags reject blocked moves.
+JUMP_POLL_INPUT:
+        LD      C,06h
+        LD      E,0FFh
+        CALL    0005h
+        OR      A
+        RET     Z
+        CP      053h                  ; S
+        JP      Z,AIR_TURN_LEFT
+        CP      073h                  ; s
+        JP      Z,AIR_TURN_LEFT
+        CP      044h                  ; D
+        JP      Z,AIR_TURN_RIGHT
+        CP      064h                  ; d
+        JP      Z,AIR_TURN_RIGHT
+        RET
+
+AIR_TURN_LEFT:
+        LD      A,01h
+        LD      (PLAYER_DIRECTION),A
+        LD      HL,PCW_PLAYER_15
+        LD      (PLAYER_SPRITE_PTR),HL
+        LD      A,(PLAYER_X)
+        CP      02h
+        RET     C
+        SUB     02h
+        JP      AIR_TRY_MOVE
+
+AIR_TURN_RIGHT:
+        XOR     A
+        LD      (PLAYER_DIRECTION),A
+        LD      HL,PCW_PLAYER_06
+        LD      (PLAYER_SPRITE_PTR),HL
+        LD      A,(PLAYER_X)
+        CP      0E6h
+        RET     NC
+        ADD     A,02h
+
+AIR_TRY_MOVE:
+        LD      (CANDIDATE_X),A
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      (AIR_CHECK_Y),A
+        LD      A,(CANDIDATE_X)
+        CALL    CHECK_AIR_POSITION
+        RET     C
+        LD      A,(CANDIDATE_X)
+        LD      (PLAYER_X),A
+        RET
+
+; Check the player's approximate original PC collision box against the
+; first room's 32x24 tile flags. Input A=candidate game X and AIR_CHECK_Y
+; is the candidate top scanline. Carry means blocked.
+CHECK_AIR_POSITION:
+        LD      (CANDIDATE_X),A
+
+        ; Collision box spans game X+5 through X+17. Check left, middle,
+        ; and right tile columns to cover the full 13-pixel body width.
+        LD      L,A
+        LD      H,00h
+        LD      DE,0005h
+        ADD     HL,DE
+        SRL     H
+        RR      L
+        SRL     H
+        RR      L
+        SRL     H
+        RR      L
+        LD      A,L
+        LD      (AIR_COL_LEFT),A
+        INC     A
+        LD      (AIR_COL_MID),A
+
+        LD      A,(CANDIDATE_X)
+        LD      L,A
+        LD      H,00h
+        LD      DE,0011h
+        ADD     HL,DE
+        SRL     H
+        RR      L
+        SRL     H
+        RR      L
+        SRL     H
+        RR      L
+        LD      A,L
+        LD      (AIR_COL_RIGHT),A
+
+        ; The original body is 21 scanlines high; the PCW sprite is 28.
+        LD      A,(AIR_CHECK_Y)
+        CALL    SCREEN_TO_MAP_ROW
+        LD      (AIR_ROW_TOP),A
+        LD      A,(AIR_CHECK_Y)
+        ADD     A,14
+        CALL    SCREEN_TO_MAP_ROW
+        LD      (AIR_ROW_MID),A
+        LD      A,(AIR_CHECK_Y)
+        ADD     A,27
+        CALL    SCREEN_TO_MAP_ROW
+        LD      (AIR_ROW_BOTTOM),A
+
+        LD      A,(AIR_ROW_TOP)
+        CALL    CHECK_AIR_ROW
+        RET     C
+        LD      A,(AIR_ROW_MID)
+        CALL    CHECK_AIR_ROW
+        RET     C
+        LD      A,(AIR_ROW_BOTTOM)
+        CALL    CHECK_AIR_ROW
+        RET
+
+; Convert a PCW scanline to the visible room's tile-row index:
+; floor(scanline * 3 / 32). Input/output A.
+SCREEN_TO_MAP_ROW:
+        LD      L,A
+        LD      H,00h
+        ADD     HL,HL                 ; 2*y
+        LD      D,H
+        LD      E,L
+        ADD     HL,DE                 ; 3*y
+        LD      B,05h
+SCREEN_ROW_SHIFT:
+        SRL     H
+        RR      L
+        DJNZ    SCREEN_ROW_SHIFT
+        LD      A,L
+        RET
+
+; Check three columns on one tile row. Input A=row index.
+CHECK_AIR_ROW:
+        LD      (AIR_TEST_ROW),A
+        LD      A,(AIR_COL_LEFT)
+        LD      C,A
+        LD      A,(AIR_TEST_ROW)
+        LD      B,A
+        CALL    CHECK_AIR_TILE
+        RET     C
+        LD      A,(AIR_COL_MID)
+        LD      C,A
+        LD      A,(AIR_TEST_ROW)
+        LD      B,A
+        CALL    CHECK_AIR_TILE
+        RET     C
+        LD      A,(AIR_COL_RIGHT)
+        LD      C,A
+        LD      A,(AIR_TEST_ROW)
+        LD      B,A
+        JP      CHECK_AIR_TILE
+
+; Input B=row, C=column. SOLID, SPAD and WAYUP all block this simple
+; first-room movement test. Out-of-grid positions are treated as blocked.
+CHECK_AIR_TILE:
+        LD      A,B
+        CP      24
+        JP      NC,AIR_TILE_BLOCKED
+        LD      A,C
+        CP      32
+        JP      NC,AIR_TILE_BLOCKED
+        LD      H,B
+        LD      L,00h
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL
+        ADD     HL,HL                 ; row * 32
+        LD      E,C
+        LD      D,00h
+        ADD     HL,DE
+        LD      DE,PCW_ROOM_FLAGS
+        ADD     HL,DE
+        LD      A,(HL)
+        AND     070h
+        JP      Z,AIR_TILE_CLEAR
+AIR_TILE_BLOCKED:
+        SCF
+        RET
+AIR_TILE_CLEAR:
+        OR      A
         RET
 
 ; Diagnostic split: B redraws only the room, P draws only the current
@@ -698,8 +899,30 @@ PLAYER_SCREEN_Y:
         DB      100
 PLAYER_Y_FP:
         DW      06400h
+OLD_PLAYER_Y_FP:
+        DW      06400h
 JUMP_VELOCITY:
         DW      0000h
+NEW_SCREEN_Y:
+        DB      100
+AIR_CHECK_Y:
+        DB      100
+CANDIDATE_X:
+        DB      08h
+AIR_COL_LEFT:
+        DB      00h
+AIR_COL_MID:
+        DB      00h
+AIR_COL_RIGHT:
+        DB      00h
+AIR_ROW_TOP:
+        DB      00h
+AIR_ROW_MID:
+        DB      00h
+AIR_ROW_BOTTOM:
+        DB      00h
+AIR_TEST_ROW:
+        DB      00h
 PLAYER_DIRECTION:
         DB      00h                    ; 0=right, 1=left
 WALK_FRAME:
@@ -759,5 +982,6 @@ RRAM_TABLE:
 
         INCLUDE "build/PCWPLAYBG.INC"
         INCLUDE "build/PCWPLAYSPRITES.INC"
+        INCLUDE "build/PCWPLAYCOLLISION.INC"
 
         END
