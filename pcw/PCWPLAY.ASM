@@ -398,6 +398,7 @@ AIR_TURN_RIGHT:
         CP      0E6h
         JP      NC,AIR_TRY_NEXT_ROOM
         ADD     A,02h
+        JP      AIR_TRY_MOVE
 
 AIR_TRY_NEXT_ROOM:
         CALL    TRANSITION_RIGHT
