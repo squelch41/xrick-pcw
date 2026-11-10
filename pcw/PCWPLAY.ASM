@@ -666,15 +666,15 @@ DROP_EXIT_NOT_FOUND:
 TRY_ROOM_SCROLL:
         LD      A,(ROOM_INDEX)
         OR      A
-        RET     NZ
+        JP      NZ,ROOM_SCROLL_NOT_DONE
         LD      A,(PLAYER_X)
         CP      0BBh
-        RET     C
+        JP      C,ROOM_SCROLL_NOT_DONE
         CP      0CFh
-        RET     NC
+        JP      NC,ROOM_SCROLL_NOT_DONE
         LD      A,(ROOM_SCROLL)
         CP      03h
-        RET     NC
+        JP      NC,ROOM_SCROLL_NOT_DONE
         INC     A
         LD      (ROOM_SCROLL),A
         LD      HL,(PLAYER_Y_FP)
@@ -686,6 +686,9 @@ TRY_ROOM_SCROLL:
         CALL    SELECT_ROOM_FLAGS
         CALL    DECOMPRESS_ROOM_BACKGROUND
         SCF
+        RET
+ROOM_SCROLL_NOT_DONE:
+        OR      A                       ; clear carry: no viewport change
         RET
 
 ; A = destination submap. Select its collision flags and decompress its
