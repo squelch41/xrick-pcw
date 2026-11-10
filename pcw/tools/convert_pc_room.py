@@ -70,7 +70,7 @@ def convert_word_low_bit(word: int) -> int:
     return result
 
 
-def load_room(map_source: str, tile_source: str) -> list[list[int]]:
+def load_room(map_source: str, tile_source: str, submap_number: int | None = None, frow: int | None = None) -> list[list[int]]:
     maps = strip_comments(map_source)
     tiles = strip_comments(tile_source)
     blocks = parse_values(extract_initializer(maps, "map_blocks"))
@@ -87,17 +87,23 @@ def load_room(map_source: str, tile_source: str) -> list[list[int]]:
         raise ValueError("map metadata is incomplete")
 
     # The first PC map's fields are {start_x, start_y, map_frow, submap, tune}.
-    start_x, start_y, map_frow, submap_number, _tune = map_starts[:5]
+    _start_x, _start_y, map_frow, map_submap_number, _tune = map_starts[:5]
+    if submap_number is None:
+        submap_number = map_submap_number
+    if frow is None:
+        frow = map_frow
+    if submap_number < 0:
+        raise ValueError("submap number must be non-negative")
     submap_base = submap_number * 4
     if submap_base + 3 >= len(submaps):
         raise ValueError("first map refers to a missing submap")
     page, block_base = submaps[submap_base], submaps[submap_base + 1]
     tile_bank = 3 if page == 1 else 2
     if tile_bank != 2:
-        raise ValueError(f"first room unexpectedly selects tile bank {tile_bank}")
+        raise ValueError(f"selected submap requires unsupported tile bank {tile_bank}")
 
     # This is the original map_expand() traversal, including its 11x8 block loop.
-    block_index = block_base + ((2 * map_frow) & 0xFFF8)
+    block_index = block_base + ((2 * frow) & 0xFFF8)
     tile_map = [[0] * 32 for _ in range(44)]
     row = col = 0
     for _block_row in range(11):
@@ -250,13 +256,17 @@ def main() -> int:
     parser.add_argument("output", type=Path, help="output Z80 assembler include")
     parser.add_argument("--background-only", action="store_true",
                         help="omit Rick so the player can be drawn dynamically")
+    parser.add_argument("--submap", type=int, default=None,
+                        help="select a submap number instead of map 0's starting submap")
+    parser.add_argument("--frow", type=lambda value: int(value, 0), default=None,
+                        help="override the map's first-row offset (e.g. 0xA0)")
     args = parser.parse_args()
 
     try:
         map_source = args.maps.read_text(encoding="utf-8")
         tile_source = args.tiles.read_text(encoding="utf-8")
         sprite_source = args.sprites.read_text(encoding="utf-8")
-        room = load_room(map_source, tile_source)
+        room = load_room(map_source, tile_source, args.submap, args.frow)
         sprite_pairs = load_sprite_words(sprite_source)
         source_pixels = render_source_room(
             room, tile_source, sprite_pairs, include_rick=not args.background_only
@@ -275,7 +285,8 @@ def main() -> int:
         else f"with Rick sprite {SPRITE_ID:#04x}"
     )
     print(
-        f"Rendered original map 0 {description}: "
+        f"Rendered original map 0 submap {args.submap if args.submap is not None else 'default'} "
+        f"(frow {args.frow if args.frow is not None else 'default'}), {description}: "
         f"{SCREEN_WIDTH}x{SCREEN_HEIGHT}, {len(screen)} screen bytes -> {args.output}"
     )
     return 0
