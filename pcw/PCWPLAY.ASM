@@ -77,6 +77,10 @@ MAIN_LOOP:
         JP      Z,MOVE_RIGHT
         CP      064h                  ; d
         JP      Z,MOVE_RIGHT
+        CP      058h                  ; X: crouch / stand
+        JP      Z,TOGGLE_CROUCH
+        CP      078h                  ; x
+        JP      Z,TOGGLE_CROUCH
         CP      057h                  ; W
         JP      Z,START_JUMP
         CP      077h                  ; w
@@ -152,6 +156,9 @@ TEST_JUMP_LEFT:
 MOVE_LEFT:
         LD      A,01h
         LD      (PLAYER_DIRECTION),A
+        LD      A,(CROUCHING)
+        OR      A
+        JP      NZ,CRAWL_LEFT
         LD      A,(PLAYER_X)
         CP      02h
         JP      C,GROUND_MOVE_BLOCKED
@@ -162,6 +169,9 @@ MOVE_LEFT:
 MOVE_RIGHT:
         XOR     A
         LD      (PLAYER_DIRECTION),A
+        LD      A,(CROUCHING)
+        OR      A
+        JP      NZ,CRAWL_RIGHT
         LD      A,(PLAYER_X)
         CP      0E6h                  ; crossing from x=230 enters next submap
         JP      NC,GROUND_TRY_NEXT_ROOM
@@ -214,6 +224,98 @@ GROUND_MOVE_BLOCKED:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
+
+; X toggles crouching. When crouched, Rick can crawl left/right and
+; uses the original PC crawl frames (07/08 right, 13/14 left).
+TOGGLE_CROUCH:
+        LD      A,(CROUCHING)
+        OR      A
+        JP      NZ,STAND_UP
+        LD      A,01h
+        LD      (CROUCHING),A
+        LD      A,00h
+        LD      (CRAWL_FRAME),A
+        CALL    SELECT_CRAWL_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+STAND_UP:
+        ; Temporarily use the standing collision box. Do not stand if the
+        ; full-height player box would overlap a ceiling or other solid tile.
+        XOR     A
+        LD      (CROUCHING),A
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        JP      NC,STAND_UP_CLEAR
+        LD      A,01h
+        LD      (CROUCHING),A
+        CALL    SELECT_CRAWL_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+STAND_UP_CLEAR:
+        CALL    SELECT_IDLE_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+CRAWL_LEFT:
+        LD      A,(PLAYER_X)
+        CP      02h
+        JP      C,CRAWL_BLOCKED
+        SUB     02h
+        JP      CRAWL_TRY_MOVE
+
+CRAWL_RIGHT:
+        LD      A,(PLAYER_X)
+        CP      0E6h
+        JP      NC,CRAWL_BLOCKED
+        ADD     A,02h
+
+CRAWL_TRY_MOVE:
+        LD      (CANDIDATE_X),A
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      (AIR_CHECK_Y),A
+        LD      A,(CANDIDATE_X)
+        CALL    CHECK_AIR_POSITION
+        JP      C,CRAWL_BLOCKED
+        LD      A,(CANDIDATE_X)
+        LD      (PLAYER_X),A
+        LD      A,(CRAWL_FRAME)
+        XOR     01h
+        LD      (CRAWL_FRAME),A
+        CALL    SELECT_CRAWL_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+CRAWL_BLOCKED:
+        CALL    SELECT_CRAWL_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+SELECT_CRAWL_SPRITE:
+        LD      A,(PLAYER_DIRECTION)
+        OR      A
+        JP      NZ,CRAWL_LEFT_SPRITE
+        LD      A,(CRAWL_FRAME)
+        OR      A
+        JP      NZ,CRAWL_RIGHT_FRAME_2
+        LD      HL,PCW_PLAYER_07
+        JP      CRAWL_SPRITE_STORE
+CRAWL_RIGHT_FRAME_2:
+        LD      HL,PCW_PLAYER_08
+        JP      CRAWL_SPRITE_STORE
+CRAWL_LEFT_SPRITE:
+        LD      A,(CRAWL_FRAME)
+        OR      A
+        JP      NZ,CRAWL_LEFT_FRAME_2
+        LD      HL,PCW_PLAYER_13
+        JP      CRAWL_SPRITE_STORE
+CRAWL_LEFT_FRAME_2:
+        LD      HL,PCW_PLAYER_14
+CRAWL_SPRITE_STORE:
+        LD      (PLAYER_SPRITE_PTR),HL
+        RET
 
 ; Begin falling with zero initial vertical speed. JUMP_UPDATE supplies gravity,
 ; collision and air steering, but unlike START_JUMP this has no upward impulse.
@@ -491,6 +593,22 @@ CHECK_AIR_POSITION:
 
         ; The original body is 21 scanlines high; the PCW sprite is 28.
         LD      A,(AIR_CHECK_Y)
+        LD      B,A
+        LD      A,(CROUCHING)
+        OR      A
+        LD      A,B
+        JP      Z,AIR_STANDING_ROWS
+        ADD     A,08h
+        CALL    SCREEN_TO_MAP_ROW
+        LD      (AIR_ROW_TOP),A
+        LD      A,(AIR_CHECK_Y)
+        ADD     A,17
+        CALL    SCREEN_TO_MAP_ROW
+        LD      (AIR_ROW_MID),A
+        LD      A,(AIR_CHECK_Y)
+        ADD     A,25
+        JP      AIR_BOTTOM_ROW
+AIR_STANDING_ROWS:
         CALL    SCREEN_TO_MAP_ROW
         LD      (AIR_ROW_TOP),A
         LD      A,(AIR_CHECK_Y)
@@ -499,6 +617,8 @@ CHECK_AIR_POSITION:
         LD      (AIR_ROW_MID),A
         LD      A,(AIR_CHECK_Y)
         ADD     A,27
+AIR_BOTTOM_ROW:
+        
         CALL    SCREEN_TO_MAP_ROW
         LD      (AIR_ROW_BOTTOM),A
 
@@ -1376,6 +1496,10 @@ PLAYER_DIRECTION:
         DB      00h                    ; 0=right, 1=left
 WALK_FRAME:
         DB      01h                    ; 1..5
+CROUCHING:
+        DB      00h                    ; 1=crouched
+CRAWL_FRAME:
+        DB      00h                    ; 0/1 crawl pose
 PLAYER_SPRITE_PTR:
         DW      0000h
 ROOM_INDEX:
