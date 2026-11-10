@@ -206,7 +206,9 @@ def main() -> int:
             "; Each screen is a 720x256 1-bit raster compressed with 12-bit LZSS."
         ]
         compressed_sizes = []
+        room_frows = []
         for room in range(ROOMS):
+            room_frows.append(frow)
             tile_ids, page = visible_tiles(maps, room, frow)
             if page not in (0, 1):
                 raise ValueError(f"room {room}: unsupported tile page {page}")
@@ -225,8 +227,18 @@ def main() -> int:
             bg_lines.append(f"PCW_ROOM{room}_BG_COMP_END:")
             compressed_sizes.append(len(compressed))
             if room < ROOMS - 1:
-                _direction, rowout, _destination, rowin = records[4:8]
-                frow = (frow - rowout + rowin) & 0xff
+                direction, _rowout, destination, rowin = records[4:8]
+                if direction != 0 or destination != room + 1:
+                    raise ValueError(
+                        f"room {room}: expected right connector to room {room + 1}, "
+                        f"got direction {direction:#04x}, destination {destination:#04x}"
+                    )
+                # The original game scrolls vertically before reaching a connector.
+                # Its submap-entry viewport is set from the incoming connector as
+                # rowin - 0x10 (game.c:init). Carrying the previous room's starting
+                # frow through map_chain's live-scroll formula incorrectly assumes
+                # no scrolling occurred and can select a much later section.
+                frow = (rowin - 0x10) & 0xff
         Path(sys.argv[3]).parent.mkdir(parents=True, exist_ok=True)
         Path(sys.argv[4]).parent.mkdir(parents=True, exist_ok=True)
         Path(sys.argv[3]).write_text("\n".join(room_lines) + "\n", encoding="ascii")
@@ -235,7 +247,8 @@ def main() -> int:
             f"Generated {ROOMS} rooms: {ROOMS * 768} collision flags, "
             f"{ROOMS * 12} connector bytes; compressed backgrounds "
             + ", ".join(str(n) for n in compressed_sizes)
-            + f" bytes (total {sum(compressed_sizes)})."
+            + f" bytes (total {sum(compressed_sizes)}); "
+            + "entry frows " + ", ".join(f"{value:#04x}" for value in room_frows) + "."
         )
     except (OSError, ValueError, IndexError) as exc:
         print(f"error: {exc}", file=sys.stderr)
