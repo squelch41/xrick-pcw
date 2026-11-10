@@ -318,6 +318,11 @@ JUMP_SCROLL_THRESHOLD:
         LD      A,H
         CP      0BBh                  ; scroll when Rick reaches y=187
         JP      C,JUMP_CHECK_BOTTOM
+        ; Scroll only if the candidate body is clear of platforms and walls.
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        JP      C,JUMP_HIT_OBSTACLE
         CALL    TRY_ROOM_SCROLL
         JP      C,JUMP_DRAW_FRAME
 
@@ -665,11 +670,6 @@ TRY_ROOM_SCROLL:
         LD      A,(ROOM_INDEX)
         OR      A
         JP      NZ,ROOM_SCROLL_NOT_DONE
-        LD      A,(PLAYER_X)
-        CP      0BBh
-        JP      C,ROOM_SCROLL_NOT_DONE
-        CP      0CFh
-        JP      NC,ROOM_SCROLL_NOT_DONE
         LD      A,(ROOM_SCROLL)
         CP      03h
         JP      NC,ROOM_SCROLL_NOT_DONE
