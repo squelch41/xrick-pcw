@@ -3,10 +3,11 @@
 This directory contains the native Z80/CP/M port work for
 [ xrick ](https://github.com/zpqrtbnk/xrick).
 
-**Status:** PCWROOM is the known-good static scene. PCWPLAY now supports
-left/right walking and a complete vertical jump arc with direction-specific
-jump poses. Jumping is currently a self-contained test with a fixed landing
-height; collision and horizontal steering while airborne are not implemented yet.
+**Status:** PCWROOM is the known-good static scene. PCWPLAY has confirmed
+left/right walking and now has an initial vertical jump implementation with
+direction-specific jump poses awaiting Joyce testing. The jump uses a fixed
+landing height; collision and horizontal steering while airborne are not
+implemented yet.
 
 ## First target
 
