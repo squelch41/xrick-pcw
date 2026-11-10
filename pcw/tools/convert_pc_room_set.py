@@ -37,20 +37,17 @@ def visible_tiles(src: str, submap: int, frow: int) -> tuple[list[int], int]:
     page, base=submaps[submap*4:submap*4+2]
     index=base+((2*frow)&0xfff8)
     grid=[[0]*32 for _ in range(44)]
-    row=col=0
-    for _ in range(11):
-        for _ in range(8):
+    # Each source block is a 4x4 tile square. Expand the 11x8 block
+    # arrangement into a 44x32 tile grid using explicit coordinates.
+    for block_row in range(11):
+        for block_col in range(8):
             if index>=len(bnums): raise ValueError(f"submap {submap}: block table overrun")
             block=bnums[index]; index+=1
             chunk=blocks[block*16:(block+1)*16]
             if len(chunk)!=16: raise ValueError(f"submap {submap}: invalid block {block}")
-            pos=0
-            for _ in range(4):
-                for _ in range(4):
-                    grid[row][col]=chunk[pos]; col+=1; pos+=1
-                row+=1; col-=3
-            row-=4; col+=4
-        row+=4; col=0
+            for tile_row in range(4):
+                for tile_col in range(4):
+                    grid[block_row*4+tile_row][block_col*4+tile_col]=chunk[tile_row*4+tile_col]
     return [v for line in grid[8:32] for v in line], page
 
 def tile_flags(src: str, page: int) -> list[int]:
