@@ -72,9 +72,9 @@ The current upstream repository has an `xrick/` directory at its root. Common so
 3. Extend and benchmark the tile and sprite blitters. The user has confirmed `PCWBLIT`, `PCWTRANS`, `PCWSUB` and `PCWBMP` in Joyce, including arbitrary horizontal alignment and clipping.
 4. Render original game artwork. The user has confirmed that `PCWROOM` displays the first original PC room and Rick's idle sprite correctly across the full 720x256 PCW raster.
 5. Add the first interactive movement test. `PCWPLAY` uses the original two-pixel left/right step and the original five-frame walk cycles. The user has confirmed that walking in both directions now works without screen corruption.
-6. Add the first jump test. `PCWPLAY` uses the original PC jump impulse (-0x0580 in 8.8 game coordinates), gravity (+0x0080 per update), and jump poses 0x06/0x15. These are scaled to the PCW's 720x256 display; W runs a complete vertical arc and returns to the fixed standing height. This version does not yet implement tile/platform collision or air steering.
-7. Add tile-based collision and horizontal steering while airborne; then replace full-screen redraws with a faster dirty-rectangle background restore.
-8. Add scrolling, ladders, entities, sound effects and the remaining game logic.
+6. Add the first jump test. `PCWPLAY` uses the original PC jump impulse (-0x0580 in 8.8 game coordinates), gravity (+0x0080 per update), and jump poses 0x06/0x15. These are scaled to the PCW's 720x256 display; W runs a complete vertical arc and returns to the fixed standing height. The user has confirmed this jump test works.
+7. Add S/D air steering and first-room collision. `convert_pc_collision.py` expands the original PC tile-flag table and the first room's 32x24 tile map. `PCWPLAY` checks Rick's approximate original collision box against SOLID/SPAD/WAYUP tiles while moving or ascending. This version still lands at the initial fixed floor height; support checks, falling through gaps, lethal tiles and collision in all movement states remain future work. This extension is awaiting Joyce testing.
+8. Replace full-screen redraws with a faster dirty-rectangle background restore, then add scrolling, ladders, entities, sound effects and the remaining game logic.
 
 ## References
 
