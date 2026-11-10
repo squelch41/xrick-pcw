@@ -1,4 +1,4 @@
-; PCWPLAY.ASM
+; PCWPLAY3.ASM
 ; Third-screen Rick Dangerous test room for the Amstrad PCW 9256.
 ;
 ; Controls:
