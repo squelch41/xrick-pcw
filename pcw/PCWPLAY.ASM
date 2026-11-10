@@ -427,9 +427,9 @@ JUMP_POLL_INPUT:
         CALL    0005h
         OR      A
         RET     Z
-        CP      053h                  ; S
+        CP      041h                  ; A
         JP      Z,AIR_TURN_LEFT
-        CP      073h                  ; s
+        CP      061h                  ; a
         JP      Z,AIR_TURN_LEFT
         CP      044h                  ; D
         JP      Z,AIR_TURN_RIGHT
