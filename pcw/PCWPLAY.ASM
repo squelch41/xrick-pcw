@@ -427,8 +427,8 @@ CHECK_AIR_TILE:
         LD      A,C
         CP      32
         JP      NC,AIR_TILE_BLOCKED
-        LD      H,B
-        LD      L,00h
+        LD      H,00h
+        LD      L,B
         ADD     HL,HL
         ADD     HL,HL
         ADD     HL,HL
