@@ -10,6 +10,7 @@
 ;   P = draw the current player only (diagnostic; use after B)
 ;   1..5 = display an individual left-facing walk frame at the start position
 ;   V = draw left-facing frame 5 directly, bypassing frame selection
+;   J/K = display the right/left jump pose without jump physics
 ;   Q = clear the display and return to CP/M
 ;
 ; This milestone adds the original PC jump impulse and jump poses, plus
@@ -79,6 +80,14 @@ MAIN_LOOP:
         JP      Z,START_JUMP
         CP      077h                  ; w
         JP      Z,START_JUMP
+        CP      04Ah                  ; J: show right-facing jump frame
+        JP      Z,TEST_JUMP_RIGHT
+        CP      06Ah                  ; j
+        JP      Z,TEST_JUMP_RIGHT
+        CP      04Bh                  ; K: show left-facing jump frame
+        JP      Z,TEST_JUMP_LEFT
+        CP      06Bh                  ; k
+        JP      Z,TEST_JUMP_LEFT
         CP      049h                  ; I
         JP      Z,SELECT_IDLE
         CP      069h                  ; i
@@ -117,6 +126,24 @@ TEST_LEFT_FRAME_5:
         LD      A,08h
         LD      (PLAYER_X),A
         LD      HL,PCW_PLAYER_11
+        LD      (PLAYER_SPRITE_PTR),HL
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+; Display jump sprites without running the jump physics or collision code.
+; These are useful for separating sprite-data/layout faults from jump faults.
+TEST_JUMP_RIGHT:
+        XOR     A
+        LD      (PLAYER_DIRECTION),A
+        LD      HL,PCW_PLAYER_06
+        LD      (PLAYER_SPRITE_PTR),HL
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+TEST_JUMP_LEFT:
+        LD      A,01h
+        LD      (PLAYER_DIRECTION),A
+        LD      HL,PCW_PLAYER_15
         LD      (PLAYER_SPRITE_PTR),HL
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
