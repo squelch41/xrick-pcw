@@ -4,6 +4,7 @@
 ; Controls:
 ;   S = move left (one original game step)
 ;   D = move right (one original game step)
+;   W = jump (runs the full jump arc and lands)
 ;   I = stand still / restore idle pose
 ;   B = redraw background only (diagnostic)
 ;   P = draw the current player only (diagnostic; use after B)
@@ -11,10 +12,10 @@
 ;   V = draw left-facing frame 5 directly, bypassing frame selection
 ;   Q = clear the display and return to CP/M
 ;
-; This first playable milestone deliberately uses the original PC game's
-; walk cycle and coordinate step, but does not yet implement collision,
-; scrolling, jumping or other entities. Each keypress advances one step;
-; CP/M keyboard auto-repeat can be used for continuous movement.
+; This milestone adds the original PC jump impulse and jump poses. The jump
+; is currently a self-contained vertical arc with a flat landing height;
+; collision, air steering, scrolling and other entities come later.
+; Walking remains one original game step per keypress.
 ;
 ; The room background and player frames are generated from the original
 ; Xrick PC assets. The 720x256 art is nearest-neighbour scaled from 256x192.
@@ -42,6 +43,10 @@ START:
         LD      (PLAYER_DIRECTION),A
         LD      A,01h
         LD      (WALK_FRAME),A
+        LD      A,100
+        LD      (PLAYER_SCREEN_Y),A
+        LD      HL,06400h
+        LD      (PLAYER_Y_FP),HL
         CALL    SELECT_IDLE_SPRITE
 
         CALL    DRAW_BACKGROUND
@@ -69,6 +74,10 @@ MAIN_LOOP:
         JP      Z,MOVE_RIGHT
         CP      064h                  ; d
         JP      Z,MOVE_RIGHT
+        CP      057h                  ; W
+        JP      Z,START_JUMP
+        CP      077h                  ; w
+        JP      Z,START_JUMP
         CP      049h                  ; I
         JP      Z,SELECT_IDLE
         CP      069h                  ; i
@@ -177,6 +186,65 @@ SELECT_IDLE:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
+
+; Start a complete jump using the original PC game's initial impulse and
+; gravity, scaled from 256x192 game coordinates to the 720x256 PCW display.
+; The jump is intentionally vertical-only for this milestone.
+START_JUMP:
+        LD      A,(PLAYER_DIRECTION)
+        OR      A
+        JP      NZ,START_JUMP_LEFT
+        LD      HL,PCW_PLAYER_06
+        JP      START_JUMP_FRAME
+START_JUMP_LEFT:
+        LD      HL,PCW_PLAYER_15
+START_JUMP_FRAME:
+        LD      (PLAYER_SPRITE_PTR),HL
+        LD      HL,06400h              ; screen y=100 in 8.8 fixed point
+        LD      (PLAYER_Y_FP),HL
+        LD      HL,0F8ABh              ; -7.332 PCW pixels/update (~ -5.5 game px)
+        LD      (JUMP_VELOCITY),HL
+
+JUMP_UPDATE:
+        ; Integrate vertical position using the current velocity.
+        LD      HL,(PLAYER_Y_FP)
+        LD      DE,(JUMP_VELOCITY)
+        ADD     HL,DE
+        LD      (PLAYER_Y_FP),HL
+
+        ; Reaching or passing the original standing height means landing.
+        LD      A,H
+        CP      100
+        JP      NC,JUMP_LANDED
+        LD      (PLAYER_SCREEN_Y),A
+        CALL    REDRAW_SCENE
+
+        ; Original PC gravity is +0.5 game pixels/update. Scale it by 4/3.
+        LD      HL,(JUMP_VELOCITY)
+        LD      DE,000AAh
+        ADD     HL,DE
+        LD      (JUMP_VELOCITY),HL
+        CALL    JUMP_DELAY
+        JP      JUMP_UPDATE
+
+JUMP_LANDED:
+        LD      HL,06400h
+        LD      (PLAYER_Y_FP),HL
+        LD      A,100
+        LD      (PLAYER_SCREEN_Y),A
+        CALL    SELECT_IDLE_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+; A short pause keeps successive jump poses visible in Joyce and on hardware.
+JUMP_DELAY:
+        LD      BC,0800h
+JUMP_DELAY_LOOP:
+        DEC     BC
+        LD      A,B
+        OR      C
+        JP      NZ,JUMP_DELAY_LOOP
+        RET
 
 ; Diagnostic split: B redraws only the room, P draws only the current
 ; player over that room. This distinguishes background banking from the
@@ -300,7 +368,8 @@ DRAW_PLAYER:
 
         LD      HL,PLAYER_BUFFER
         LD      DE,(PLAYER_SCREEN_X)
-        LD      C,100                 ; original map y=75 -> screen y=100
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      C,A
         LD      B,12                  ; 96 source pixels, six transparent pad
         LD      A,28
         CALL    DRAW_MASKED_BITMAP
@@ -625,6 +694,12 @@ SCREEN_Y:
         DB      00h
 PLAYER_X:
         DB      08h
+PLAYER_SCREEN_Y:
+        DB      100
+PLAYER_Y_FP:
+        DW      06400h
+JUMP_VELOCITY:
+        DW      0000h
 PLAYER_DIRECTION:
         DB      00h                    ; 0=right, 1=left
 WALK_FRAME:
