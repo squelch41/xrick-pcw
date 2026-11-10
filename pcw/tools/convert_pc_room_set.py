@@ -207,25 +207,44 @@ def main() -> int:
         ]
         compressed_sizes = []
         room_frows = []
+        scroll_frows = []
         for room in range(ROOMS):
             room_frows.append(frow)
-            tile_ids, page = visible_tiles(maps, room, frow)
-            if page not in (0, 1):
-                raise ValueError(f"room {room}: unsupported tile page {page}")
-            flags = tile_flags(maps, page)
-            collision = bytes(flags[tile] for tile in tile_ids)
-            if len(collision) != 768:
-                raise ValueError(f"room {room}: expected 768 collision cells")
             records = connectors[room * 12:room * 12 + 12]
-            room_lines += db(f"PCW_ROOM{room}_FLAGS", collision)
+
+            # The first submap is taller than one viewport. The PC game scrolls
+            # it in eight-tile steps while Rick falls down the right-hand shaft.
+            # Pre-render the four successive viewports so the PCW version can
+            # change both its background and collision grid at each scroll.
+            scroll_count = 4 if room == 0 else 1
+            for scroll in range(scroll_count):
+                view_frow = (frow + scroll * 8) & 0xff
+                if room == 0:
+                    scroll_frows.append(view_frow)
+                tile_ids, page = visible_tiles(maps, room, view_frow)
+                if page not in (0, 1):
+                    raise ValueError(f"room {room}: unsupported tile page {page}")
+                flags = tile_flags(maps, page)
+                collision = bytes(flags[tile] for tile in tile_ids)
+                if len(collision) != 768:
+                    raise ValueError(f"room {room}: expected 768 collision cells")
+
+                suffix = "" if scroll == 0 else f"_SCROLL{scroll}"
+                flag_label = f"PCW_ROOM{room}{suffix}_FLAGS"
+                bg_label = f"PCW_ROOM{room}{suffix}_BG_COMP"
+                room_lines += db(flag_label, collision)
+                raster = render_background(tile_ids, page, tiles)
+                compressed = lzss_compress(raster)
+                if lzss_decompress(compressed, SCREEN_BYTES) != raster:
+                    raise ValueError(
+                        f"room {room} scroll {scroll}: compressed background "
+                        "failed round-trip validation"
+                    )
+                bg_lines += db(bg_label, compressed)
+                bg_lines.append(f"{bg_label}_END:")
+                compressed_sizes.append(len(compressed))
+
             room_lines += db(f"PCW_ROOM{room}_CONNECTORS", records)
-            raster = render_background(tile_ids, page, tiles)
-            compressed = lzss_compress(raster)
-            if lzss_decompress(compressed, SCREEN_BYTES) != raster:
-                raise ValueError(f"room {room}: compressed background failed round-trip validation")
-            bg_lines += db(f"PCW_ROOM{room}_BG_COMP", compressed)
-            bg_lines.append(f"PCW_ROOM{room}_BG_COMP_END:")
-            compressed_sizes.append(len(compressed))
             if room < ROOMS - 1:
                 direction, _rowout, destination, rowin = records[4:8]
                 if direction != 0 or destination != room + 1:
@@ -233,11 +252,8 @@ def main() -> int:
                         f"room {room}: expected right connector to room {room + 1}, "
                         f"got direction {direction:#04x}, destination {destination:#04x}"
                     )
-                # The original game scrolls vertically before reaching a connector.
-                # Its submap-entry viewport is set from the incoming connector as
-                # rowin - 0x10 (game.c:init). Carrying the previous room's starting
-                # frow through map_chain's live-scroll formula incorrectly assumes
-                # no scrolling occurred and can select a much later section.
+                # Direct submap entry uses the original game's start viewport:
+                # rowin - 0x10, with Rick positioned at local y=0x80.
                 frow = (rowin - 0x10) & 0xff
         Path(sys.argv[3]).parent.mkdir(parents=True, exist_ok=True)
         Path(sys.argv[4]).parent.mkdir(parents=True, exist_ok=True)
@@ -248,7 +264,9 @@ def main() -> int:
             f"{ROOMS * 12} connector bytes; compressed backgrounds "
             + ", ".join(str(n) for n in compressed_sizes)
             + f" bytes (total {sum(compressed_sizes)}); "
-            + "entry frows " + ", ".join(f"{value:#04x}" for value in room_frows) + "."
+            + "room entry frows " + ", ".join(f"{value:#04x}" for value in room_frows)
+            + "; first-room scroll frows "
+            + ", ".join(f"{value:#04x}" for value in scroll_frows) + "."
         )
     except (OSError, ValueError, IndexError) as exc:
         print(f"error: {exc}", file=sys.stderr)
