@@ -18,8 +18,6 @@ python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/da
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
-python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAY3BG.INC --background-only --submap 2 --frow 0xA0
-python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAY3COLLISION.INC --submap 2 --frow 0xA0
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
 from pathlib import Path
@@ -36,7 +34,7 @@ if len(values) != 32 * 24:
 print(f"Collision data OK: {len(values)} first-room tile flags.")
 PY
 
-for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY PCWPLAY3; do
+for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
     "$Z80ASM" \
         --list="build/$name.lst" \
         --label="build/$name.lbl" \
@@ -44,7 +42,7 @@ for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCW
         "$name.ASM"
 done
 
-python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM build/PCWPLAY3.COM <<'PY'
+python3 - build/PCWAYTST.COM build/PCWGFXT.COM build/PCWGRID.COM build/PCWPIX.COM build/PCWRRAM.COM build/PCWDECO.COM build/PCWBLIT.COM build/PCWTRANS.COM build/PCWSUB.COM build/PCWBMP.COM build/PCWREAL.COM build/PCWROOM.COM build/PCWPLAY.COM <<'PY'
 from pathlib import Path
 import sys
 
@@ -65,7 +63,6 @@ checks = {
     "PCWREAL.COM": bytes((0xF3, 0x3E, 0x81, 0xD3, 0xF1, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWROOM.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
     "PCWPLAY.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
-    "PCWPLAY3.COM": bytes((0xF3, 0x3E, 0x82, 0xD3, 0xF2)),
 }
 
 for filename in sys.argv[1:]:
@@ -87,10 +84,10 @@ for filename in sys.argv[1:]:
     if path.name == "PCWROOM.COM" and len(data) < 23040:
         raise SystemExit(f"{path.name}: full-screen image data is missing or incomplete ({len(data)} bytes)")
 
-    if path.name in ("PCWPLAY.COM", "PCWPLAY3.COM") and len(data) < 32448:
+    if path.name == "PCWPLAY.COM" and len(data) < 32448:
         raise SystemExit(f"{path.name}: room background or scaled player frames are missing ({len(data)} bytes)")
 
-    if path.name in ("PCWPLAY.COM", "PCWPLAY3.COM"):
+    if path.name == "PCWPLAY.COM":
         labels = Path(f"build/{path.stem}.lbl").read_text(encoding="ascii")
         import re
         match = re.search(r"(?im)^\s*PCW_PLAYER_10:\s*equ\s*\$([0-9a-f]+)", labels)
