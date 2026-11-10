@@ -14,9 +14,8 @@
 ;   Q = clear the display and return to CP/M
 ;
 ; This milestone adds the original PC jump impulse and jump poses, plus
-; S/D air steering and collision against first-room solid tiles. Landing
-; still returns to the initial fixed floor height; gaps, falling and scrolling
-; are not implemented yet.
+; S/D air steering and collision against first-room solid tiles. Rick now
+; lands on tile surfaces and falls when walking off an edge.
 ; Walking remains one original game step per keypress.
 ;
 ; The room background and player frames are generated from the original
@@ -176,6 +175,18 @@ GROUND_TRY_MOVE:
         JP      C,GROUND_MOVE_BLOCKED
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
+
+        ; If there is no supporting tile immediately below the feet, start
+        ; a gravity-driven fall instead of leaving Rick suspended in mid-air.
+        LD      A,(PLAYER_SCREEN_Y)
+        INC     A
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        JP      NC,GROUND_HAS_SUPPORT
+        CALL    START_FALL
+
+GROUND_HAS_SUPPORT:
         CALL    ADVANCE_WALK_FRAME
         CALL    SELECT_WALK_SPRITE
         CALL    REDRAW_SCENE
@@ -185,6 +196,22 @@ GROUND_MOVE_BLOCKED:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
+
+; Begin falling with zero initial vertical speed. JUMP_UPDATE supplies gravity,
+; collision and air steering, but unlike START_JUMP this has no upward impulse.
+START_FALL:
+        LD      A,(PLAYER_DIRECTION)
+        OR      A
+        JP      NZ,START_FALL_LEFT
+        LD      HL,PCW_PLAYER_06
+        JP      START_FALL_FRAME
+START_FALL_LEFT:
+        LD      HL,PCW_PLAYER_15
+START_FALL_FRAME:
+        LD      (PLAYER_SPRITE_PTR),HL
+        LD      HL,0000h
+        LD      (JUMP_VELOCITY),HL
+        JP      JUMP_UPDATE
 
 ADVANCE_WALK_FRAME:
         LD      A,(WALK_FRAME)
@@ -255,12 +282,12 @@ JUMP_UPDATE:
         ADD     HL,DE
         LD      (PLAYER_Y_FP),HL
 
-        ; Reaching or passing the original standing height means landing.
+        ; The first-room floor is not at one universal height. Check the
+        ; candidate body against the actual tile map while moving in either
+        ; direction, so platforms can stop a fall and ceilings stop a jump.
         LD      A,H
-        CP      100
-        JP      NC,JUMP_LANDED
-
-        ; Check the candidate body against the first room's real tile flags.
+        CP      0E4h                  ; keep the 28-pixel sprite on-screen
+        JP      NC,JUMP_BOTTOM_LIMIT
         LD      (NEW_SCREEN_Y),A
         LD      (AIR_CHECK_Y),A
         LD      A,(PLAYER_X)
@@ -270,8 +297,15 @@ JUMP_UPDATE:
         LD      (PLAYER_SCREEN_Y),A
         JP      JUMP_DRAW_FRAME
 
+JUMP_BOTTOM_LIMIT:
+        JP      JUMP_LANDED
+
 JUMP_HIT_OBSTACLE:
-        ; Stop upward movement at a solid tile. Gravity then makes Rick fall.
+        ; A collision while rising is a ceiling bonk; while falling it is
+        ; a landing. In both cases retain the last non-overlapping position.
+        LD      HL,(JUMP_VELOCITY)
+        BIT     7,H
+        JP      Z,JUMP_LANDED
         LD      HL,(OLD_PLAYER_Y_FP)
         LD      (PLAYER_Y_FP),HL
         LD      HL,0000h
@@ -289,10 +323,13 @@ JUMP_DRAW_FRAME:
         JP      JUMP_UPDATE
 
 JUMP_LANDED:
-        LD      HL,06400h
+        ; Keep the last safe position rather than snapping back to y=100.
+        LD      HL,(OLD_PLAYER_Y_FP)
         LD      (PLAYER_Y_FP),HL
-        LD      A,100
+        LD      A,H
         LD      (PLAYER_SCREEN_Y),A
+        LD      HL,0000h
+        LD      (JUMP_VELOCITY),HL
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
