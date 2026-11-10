@@ -18,6 +18,25 @@ python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/da
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
+python3 tools/convert_pc_room_set.py ../xrick/src/rd1/dat_maps.c build/PCWROOMSET.INC
+
+python3 - build/PCWROOMSET.INC <<'PY'
+from pathlib import Path
+import re
+source = Path(__import__('sys').argv[1]).read_text(encoding='ascii')
+for room in range(3):
+    for kind in ('TILES', 'FLAGS'):
+        label = f'PCW_ROOM{room}_{kind}:'
+        if source.count(label) != 1:
+            raise SystemExit(f'missing or duplicate {label}')
+        start = source.index(label)
+        end = source.find('\\nPCW_', start + len(label))
+        section = source[start:] if end < 0 else source[start:end]
+        values = re.findall(r'\\b([0-9A-F]{2})h\\b', section, re.IGNORECASE)
+        if len(values) != 768:
+            raise SystemExit(f'{label}: expected 768 bytes, found {len(values)}')
+print('Room set OK: three 32x24 tile maps and collision maps.')
+PY
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
 from pathlib import Path
