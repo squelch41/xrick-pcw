@@ -152,15 +152,21 @@ SELECT_IDLE:
 ; player over that room. This distinguishes background banking from the
 ; masked-sprite renderer without changing the normal D/S/I behaviour.
 REDRAW_BACKGROUND_ONLY:
+        ; Video-bank remapping and writes must be atomic with respect to the
+        ; PCW interrupt handler. PCWROOM keeps interrupts disabled throughout.
+        DI
         CALL    RESTORE_TPA
         CALL    DRAW_BACKGROUND
         CALL    RESTORE_TPA
+        EI
         JP      MAIN_LOOP
 
 DRAW_PLAYER_ONLY:
+        DI
         CALL    RESTORE_TPA
         CALL    DRAW_PLAYER
         CALL    RESTORE_TPA
+        EI
         JP      MAIN_LOOP
 
 SELECT_IDLE_SPRITE:
@@ -176,13 +182,14 @@ IDLE_STORE:
         RET
 
 REDRAW_SCENE:
-        ; This first test redraws the static background before each actor
-        ; update. It is intentionally simple and makes background restoration
-        ; exact; a dirty-rectangle update can replace it after movement works.
+        ; Keep interrupts disabled while the video banks are remapped and
+        ; written. This matches the working PCWROOM renderer.
+        DI
         CALL    RESTORE_TPA
         CALL    DRAW_BACKGROUND
         CALL    DRAW_PLAYER
         CALL    RESTORE_TPA
+        EI
         RET
 
 DRAW_BACKGROUND:
