@@ -615,10 +615,12 @@ TRY_DROP_ROOM_TRANSITION:
         CP      0CFh                  ; exclusive end: 223 - 17 + 1
         JP      NC,DROP_EXIT_NOT_FOUND
 
-        ; Keep the last safe visible position while replacing the room data.
-        LD      HL,(OLD_PLAYER_Y_FP)
+        ; Enter the next submap at its normal starting height. The original
+        ; game keeps Rick in the playfield while the map scrolls underneath him;
+        ; our fixed-screen version represents that with the standard entry Y.
+        LD      HL,06400h
         LD      (PLAYER_Y_FP),HL
-        LD      A,H
+        LD      A,100
         LD      (PLAYER_SCREEN_Y),A
         LD      HL,0000h
         LD      (JUMP_VELOCITY),HL
