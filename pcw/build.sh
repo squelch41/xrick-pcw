@@ -183,10 +183,15 @@ for filename in sys.argv[1:]:
                 f"{path.name}: left jump sprite crosses the F2 window ({left_jump:04X}h)"
             )
 
-    if path.name == "PCWPLAY.COM" and len(data) > 62720:
+    # PCW CP/M Plus: page-zero 0006 reports F605, so BDOS_base is F600.
+    # The CP/M Plus loader occupies three 256-byte pages immediately below
+    # BDOS_base. A COM file loaded at 0100h must therefore end by F2FFh.
+    # This gives 0xF200 (61952) bytes, including the byte at address 0100h.
+    if path.name == "PCWPLAY.COM" and len(data) > 61952:
         raise SystemExit(
-            f"{path.name}: exceeds the PCW CP/M Plus TPA limit of 62720 bytes "
-            f"({len(data)} bytes)"
+            f"{path.name}: exceeds this PCW's CP/M Plus loader limit of 61952 bytes "
+            f"({len(data)} bytes; end address would be {0x100 + len(data) - 1:04X}h, "
+            "loader begins at F300h)"
         )
 
     if len(data) >= 0xFF00:
