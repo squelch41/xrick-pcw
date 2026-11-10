@@ -1557,6 +1557,8 @@ BG_TOKEN_META:
         DB      00h
 BG_RUN_LEFT:
         DB      00h
+COLLISION_PACKED:
+        DB      00h
 PLAYER_SCREEN_X:
         DW      0000h
 BANK_NO:
