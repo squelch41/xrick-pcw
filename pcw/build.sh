@@ -19,6 +19,21 @@ python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/da
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
 
+python3 - build/PCWPLAYCOLLISION.INC <<'PY'
+from pathlib import Path
+import re
+path = Path("build/PCWPLAYCOLLISION.INC")
+source = path.read_text(encoding="ascii")
+values = []
+for line in source.splitlines():
+    line = line.split(";", 1)[0]
+    if re.match(r"^\\s*DB\\s+", line, re.IGNORECASE):
+        values.extend(int(value, 16) for value in re.findall(r"\\b([0-9A-F]{2})h\\b", line, re.IGNORECASE))
+if len(values) != 32 * 24:
+    raise SystemExit(f"{path}: expected 768 collision flags, found {len(values)}")
+print(f"Collision data OK: {len(values)} first-room tile flags.")
+PY
+
 for name in PCWAYTST PCWGFXT PCWGRID PCWPIX PCWRRAM PCWDECO PCWBLIT PCWTRANS PCWSUB PCWBMP PCWREAL PCWROOM PCWPLAY; do
     "$Z80ASM" \
         --list="build/$name.lst" \
