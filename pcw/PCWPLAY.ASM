@@ -5,6 +5,8 @@
 ;   S = move left (one original game step)
 ;   D = move right (one original game step)
 ;   I = stand still / restore idle pose
+;   B = redraw background only (diagnostic)
+;   P = draw the current player only (diagnostic; use after B)
 ;   Q = clear the display and return to CP/M
 ;
 ; This first playable milestone deliberately uses the original PC game's
@@ -69,6 +71,14 @@ MAIN_LOOP:
         JP      Z,SELECT_IDLE
         CP      069h                  ; i
         JP      Z,SELECT_IDLE
+        CP      042h                  ; B: background only, for diagnosis
+        JP      Z,REDRAW_BACKGROUND_ONLY
+        CP      062h                  ; b
+        JP      Z,REDRAW_BACKGROUND_ONLY
+        CP      050h                  ; P: player only, for diagnosis
+        JP      Z,DRAW_PLAYER_ONLY
+        CP      070h                  ; p
+        JP      Z,DRAW_PLAYER_ONLY
         JP      MAIN_LOOP
 
 MOVE_LEFT:
@@ -136,6 +146,21 @@ SELECT_WALK_POINTER:
 SELECT_IDLE:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+; Diagnostic split: B redraws only the room, P draws only the current
+; player over that room. This distinguishes background banking from the
+; masked-sprite renderer without changing the normal D/S/I behaviour.
+REDRAW_BACKGROUND_ONLY:
+        CALL    RESTORE_TPA
+        CALL    DRAW_BACKGROUND
+        CALL    RESTORE_TPA
+        JP      MAIN_LOOP
+
+DRAW_PLAYER_ONLY:
+        CALL    RESTORE_TPA
+        CALL    DRAW_PLAYER
+        CALL    RESTORE_TPA
         JP      MAIN_LOOP
 
 SELECT_IDLE_SPRITE:
