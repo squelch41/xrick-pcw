@@ -18,14 +18,14 @@ python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/da
 python3 tools/convert_pc_room.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYBG.INC --background-only
 python3 tools/convert_pc_player.py ../xrick/src/rd1/dat_spritesPC.c build/PCWPLAYSPRITES.INC
 python3 tools/convert_pc_collision.py ../xrick/src/rd1/dat_maps.c build/PCWPLAYCOLLISION.INC
-python3 tools/convert_pc_room_set.py ../xrick/src/rd1/dat_maps.c build/PCWROOMSET.INC
+python3 tools/convert_pc_room_set.py ../xrick/src/rd1/dat_maps.c ../xrick/src/rd1/dat_tilesPC.c build/PCWROOMSET.INC build/PCWROOMBACKGROUND.INC
 
 python3 - build/PCWROOMSET.INC <<'PY'
 from pathlib import Path
 import sys
 lines = Path(sys.argv[1]).read_text(encoding='ascii').splitlines()
 for room in range(3):
-    for kind in ('TILES', 'FLAGS'):
+    for kind, expected in (('FLAGS', 768), ('CONNECTORS', 12)):
         label = f'PCW_ROOM{room}_{kind}:'
         if lines.count(label) != 1:
             raise SystemExit(f'missing or duplicate {label}')
@@ -36,9 +36,26 @@ for room in range(3):
                 break
             if line.lstrip().upper().startswith('DB '):
                 count += len(line.split(None, 1)[1].split(','))
-        if count != 768:
-            raise SystemExit(f'{label}: expected 768 bytes, found {count}')
-print('Room set OK: three 32x24 tile maps and collision maps.')
+        if count != expected:
+            raise SystemExit(f'{label}: expected {expected} bytes, found {count}')
+print('Room set OK: three 32x24 collision maps and connector tables.')
+PY
+
+python3 - build/PCWROOMBACKGROUND.INC <<'PY'
+from pathlib import Path
+import sys
+lines = Path(sys.argv[1]).read_text(encoding='ascii').splitlines()
+for room in range(3):
+    label = f'PCW_ROOM{room}_BG_COMP:'
+    end = f'PCW_ROOM{room}_BG_COMP_END:'
+    if lines.count(label) != 1 or lines.count(end) != 1:
+        raise SystemExit(f'missing or duplicate compressed background labels for room {room}')
+    first, last = lines.index(label) + 1, lines.index(end)
+    size = sum(len(line.split(None, 1)[1].split(',')) for line in lines[first:last]
+               if line.lstrip().upper().startswith('DB '))
+    if size <= 0 or size >= 23040:
+        raise SystemExit(f'room {room}: unexpected compressed background size {size}')
+print('Room backgrounds OK: three compressed 720x256 images.')
 PY
 
 python3 - build/PCWPLAYCOLLISION.INC <<'PY'
