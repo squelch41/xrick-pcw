@@ -146,6 +146,39 @@ def lzss_compress(data: bytes) -> bytes:
         output.extend(tokens)
     return bytes(output)
 
+def lzss_decompress(data: bytes, expected_size: int) -> bytes:
+    output = bytearray()
+    pos = 0
+    while len(output) < expected_size:
+        if pos >= len(data):
+            raise ValueError("compressed background ended before the raster was complete")
+        control = data[pos]
+        pos += 1
+        for bit in range(7, -1, -1):
+            if len(output) >= expected_size:
+                break
+            if control & (1 << bit):
+                if pos >= len(data):
+                    raise ValueError("truncated LZSS literal")
+                output.append(data[pos])
+                pos += 1
+            else:
+                if pos + 1 >= len(data):
+                    raise ValueError("truncated LZSS back-reference")
+                low, meta = data[pos], data[pos + 1]
+                pos += 2
+                distance = (((meta & 0xf0) << 4) | low) + 1
+                length = (meta & 0x0f) + 3
+                if distance > len(output):
+                    raise ValueError("LZSS back-reference precedes the raster")
+                for _ in range(length):
+                    output.append(output[-distance])
+                    if len(output) == expected_size:
+                        break
+    if pos != len(data):
+        raise ValueError("compressed background has unused trailing bytes")
+    return bytes(output)
+
 def db(label: str, data: bytes | list[int]) -> list[str]:
     lines = [label + ":"]
     for i in range(0, len(data), 16):
@@ -186,6 +219,8 @@ def main() -> int:
             room_lines += db(f"PCW_ROOM{room}_CONNECTORS", records)
             raster = render_background(tile_ids, page, tiles)
             compressed = lzss_compress(raster)
+            if lzss_decompress(compressed, SCREEN_BYTES) != raster:
+                raise ValueError(f"room {room}: compressed background failed round-trip validation")
             bg_lines += db(f"PCW_ROOM{room}_BG_COMP", compressed)
             bg_lines.append(f"PCW_ROOM{room}_BG_COMP_END:")
             compressed_sizes.append(len(compressed))
