@@ -75,10 +75,10 @@ for filename in sys.argv[1:]:
         labels = Path("build/PCWPLAY.lbl").read_text(encoding="ascii")
         import re
         match = re.search(r"(?im)^\s*PCW_PLAYER_10:\s*equ\s*\$([0-9a-f]+)", labels)
-        if not match or int(match.group(1), 16) != 0x8000:
+        if not match or int(match.group(1), 16) != 0x8400:
             actual = match.group(1) if match else "missing"
             raise SystemExit(
-                "PCWPLAY.COM: PCW_PLAYER_10 must start at 8000h "
+                "PCWPLAY.COM: PCW_PLAYER_10 must start at 8400h "
                 f"to avoid crossing a TPA bank boundary (found {actual})."
             )
 
