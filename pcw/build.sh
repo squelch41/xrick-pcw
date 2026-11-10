@@ -100,7 +100,7 @@ for filename in sys.argv[1:]:
 
         def label_address(name):
             found = re.search(
-                rf"(?im)^\\s*{re.escape(name)}:\\s*equ\\s*\\$([0-9a-f]+)",
+                rf"(?im)^\s*{re.escape(name)}:\s*equ\s*\$([0-9a-f]+)",
                 labels,
             )
             if not found:
