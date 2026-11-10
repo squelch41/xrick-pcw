@@ -7,7 +7,8 @@
 ;   I = stand still / restore idle pose
 ;   B = redraw background only (diagnostic)
 ;   P = draw the current player only (diagnostic; use after B)
-;   1..5 = display an individual left-facing walk frame at the start position
+ ;  1..5 = display an individual left-facing walk frame at the start position
+;   V = draw left-facing frame 5 directly, bypassing frame selection
 ;   Q = clear the display and return to CP/M
 ;
 ; This first playable milestone deliberately uses the original PC game's
@@ -80,6 +81,10 @@ MAIN_LOOP:
         JP      Z,DRAW_PLAYER_ONLY
         CP      070h                  ; p
         JP      Z,DRAW_PLAYER_ONLY
+        CP      056h                  ; V: draw left-walk frame 5 directly
+        JP      Z,TEST_LEFT_FRAME_5
+        CP      076h                  ; v
+        JP      Z,TEST_LEFT_FRAME_5
         CP      031h                  ; 1..5: inspect individual left walk frames
         JP      C,MAIN_LOOP
         CP      036h                  ; accept 1 through 5 inclusive
@@ -91,6 +96,18 @@ MAIN_LOOP:
         LD      A,08h
         LD      (PLAYER_X),A
         CALL    SELECT_WALK_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
+
+; Bypass the numeric diagnostic and frame lookup table completely.
+; This checks whether sprite 0x11 itself can be copied and drawn.
+TEST_LEFT_FRAME_5:
+        LD      A,01h
+        LD      (PLAYER_DIRECTION),A
+        LD      A,08h
+        LD      (PLAYER_X),A
+        LD      HL,PCW_PLAYER_11
+        LD      (PLAYER_SPRITE_PTR),HL
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
