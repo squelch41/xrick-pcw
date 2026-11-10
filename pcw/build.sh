@@ -74,7 +74,7 @@ for filename in sys.argv[1:]:
     if path.name == "PCWPLAY.COM":
         labels = Path("build/PCWPLAY.lbl").read_text(encoding="ascii")
         import re
-        match = re.search(r"(?im)^\\s*PCW_PLAYER_10:\\s*equ\\s*\\$([0-9a-f]+)", labels)
+        match = re.search(r"(?im)^\s*PCW_PLAYER_10:\s*equ\s*\$([0-9a-f]+)", labels)
         if not match or int(match.group(1), 16) != 0x8000:
             actual = match.group(1) if match else "missing"
             raise SystemExit(
