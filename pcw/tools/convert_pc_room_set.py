@@ -225,9 +225,20 @@ def main() -> int:
                 if page not in (0, 1):
                     raise ValueError(f"room {room}: unsupported tile page {page}")
                 flags = tile_flags(maps, page)
-                collision = bytes(flags[tile] for tile in tile_ids)
+                collision = [flags[tile] for tile in tile_ids]
                 if len(collision) != 768:
                     raise ValueError(f"room {room}: expected 768 collision cells")
+
+                # The game only tests bits 4..6 (three collision flags).
+                # Store two 4-bit values per byte; the Z80 expands them into
+                # the writable one-byte-per-tile viewport at runtime.
+                def pack_collision(cells: list[int]) -> bytes:
+                    packed = bytearray()
+                    for i in range(0, len(cells), 2):
+                        low = (cells[i] & 0x70) >> 4
+                        high = (cells[i + 1] & 0x70) >> 4
+                        packed.append(low | (high << 4))
+                    return bytes(packed)
 
                 suffix = "" if scroll == 0 else f"_SCROLL{scroll}"
                 flag_label = f"PCW_ROOM{room}{suffix}_FLAGS"
@@ -239,11 +250,11 @@ def main() -> int:
                     # the newly exposed 85-line strip, not a duplicate full
                     # 720x256 raster. The Z80 shifts the existing image up
                     # and decompresses this strip into its bottom 85 lines.
-                    collision_data = collision[-(8 * 32):]
+                    collision_data = pack_collision(collision[-(8 * 32):])
                     raster_data = raster[(256 - 85) * 90:]
                     expected_bytes = 85 * 90
                 else:
-                    collision_data = collision
+                    collision_data = pack_collision(collision)
                     raster_data = raster
                     expected_bytes = SCREEN_BYTES
 
@@ -274,7 +285,7 @@ def main() -> int:
         Path(sys.argv[3]).write_text("\n".join(room_lines) + "\n", encoding="ascii")
         Path(sys.argv[4]).write_text("\n".join(bg_lines) + "\n", encoding="ascii")
         print(
-            f"Generated {ROOMS} rooms: {ROOMS * 768 + 3 * 256} collision bytes, "
+            f"Generated {ROOMS} rooms: packed collision maps and scroll strips, "
             f"{ROOMS * 12} connector bytes; compressed screens/scroll strips "
             + ", ".join(str(n) for n in compressed_sizes)
             + f" bytes (total {sum(compressed_sizes)}); "
