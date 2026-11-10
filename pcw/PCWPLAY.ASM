@@ -313,7 +313,12 @@ JUMP_UPDATE:
         JP      JUMP_DRAW_FRAME
 
 JUMP_BOTTOM_LIMIT:
-        JP      JUMP_LANDED
+        ; The first room's right-hand drop shaft is the room connector. When
+        ; Rick reaches the bottom while inside columns 24..27, enter submap 1
+        ; instead of treating the screen edge as an ordinary landing.
+        CALL    TRY_DROP_ROOM_TRANSITION
+        JP      C,JUMP_LANDED
+        JP      MAIN_LOOP
 
 JUMP_HIT_OBSTACLE:
         ; A collision while rising is a ceiling bonk; while falling it is
@@ -593,6 +598,38 @@ TRANSITION_LEFT:
         RET
 
 ROOM_TRANSITION_BLOCKED:
+        SCF
+        RET
+
+; At the bottom of room 0, the drop shaft occupies original game X 192..223
+; (tile columns 24..27). Rick's collision box is X+5..X+17, so its origin
+; must be 187..206 for the complete sampled body to fit inside the shaft.
+; A successful exit uses the existing right connector and left-side re-entry.
+TRY_DROP_ROOM_TRANSITION:
+        LD      A,(ROOM_INDEX)
+        OR      A
+        JP      NZ,DROP_EXIT_NOT_FOUND
+        LD      A,(PLAYER_X)
+        CP      0BBh                  ; first possible origin: 192 - 5
+        JP      C,DROP_EXIT_NOT_FOUND
+        CP      0CFh                  ; exclusive end: 223 - 17 + 1
+        JP      NC,DROP_EXIT_NOT_FOUND
+
+        ; Keep the last safe visible position while replacing the room data.
+        LD      HL,(OLD_PLAYER_Y_FP)
+        LD      (PLAYER_Y_FP),HL
+        LD      A,H
+        LD      (PLAYER_SCREEN_Y),A
+        LD      HL,0000h
+        LD      (JUMP_VELOCITY),HL
+        CALL    TRANSITION_RIGHT
+        RET     C
+        CALL    SELECT_IDLE_SPRITE
+        CALL    REDRAW_SCENE
+        OR      A                       ; report successful transition
+        RET
+
+DROP_EXIT_NOT_FOUND:
         SCF
         RET
 
