@@ -841,7 +841,7 @@ ROOM_SCROLL_FLAGS_2:
 ROOM_SCROLL_FLAGS_COPY:
         LD      DE,ROOM_FLAGS_BUFFER+0200h
         LD      BC,0100h
-        LDIR
+        CALL    UNPACK_COLLISION_FLAGS
 
         CALL    DECOMPRESS_ROOM_SCROLL_STRIP
         SCF
@@ -857,34 +857,66 @@ SET_ROOM_DATA:
         XOR     A
         LD      (ROOM_SCROLL),A
         CALL    SELECT_ROOM_FLAGS
-        ; Room 0 uses a writable 24x32 flag buffer so eight-row scrolls can
-        ; shift its collision data without storing three full extra maps.
+        ; Expand the packed 4-bit collision classes into the writable
+        ; one-byte-per-tile viewport used by the movement checks.
         LD      A,(ROOM_INDEX)
         OR      A
-        JP      NZ,SET_ROOM_BACKGROUND
+        JP      Z,ROOM0_COLLISION_SOURCE
+        CP      01h
+        JP      Z,ROOM1_COLLISION_SOURCE
+        LD      HL,PCW_ROOM2_FLAGS
+        JP      ROOM_COLLISION_SOURCE_READY
+ROOM0_COLLISION_SOURCE:
         LD      HL,PCW_ROOM0_FLAGS
+        JP      ROOM_COLLISION_SOURCE_READY
+ROOM1_COLLISION_SOURCE:
+        LD      HL,PCW_ROOM1_FLAGS
+ROOM_COLLISION_SOURCE_READY:
         LD      DE,ROOM_FLAGS_BUFFER
         LD      BC,0300h
-        LDIR
-SET_ROOM_BACKGROUND:
+        CALL    UNPACK_COLLISION_FLAGS
         CALL    DECOMPRESS_ROOM_BACKGROUND
         RET
 
 SELECT_ROOM_FLAGS:
-        LD      A,(ROOM_INDEX)
-        OR      A
-        JP      Z,ROOM0_FLAGS_SELECT
-        CP      01h
-        JP      Z,ROOM1_FLAGS_PTR
-        LD      HL,PCW_ROOM2_FLAGS
-        JP      ROOM_FLAGS_PTR_STORE
-ROOM0_FLAGS_SELECT:
         LD      HL,ROOM_FLAGS_BUFFER
-        JP      ROOM_FLAGS_PTR_STORE
-ROOM1_FLAGS_PTR:
-        LD      HL,PCW_ROOM1_FLAGS
-ROOM_FLAGS_PTR_STORE:
         LD      (ROOM_FLAGS_PTR),HL
+        RET
+
+; Expand two 4-bit collision classes per source byte into full flag bytes.
+; Input HL=packed source, DE=destination, BC=number of output cells (even).
+UNPACK_COLLISION_FLAGS:
+COLLISION_UNPACK_LOOP:
+        LD      A,(HL)
+        INC     HL
+        LD      (COLLISION_PACKED),A
+        AND     00Fh
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        LD      (DE),A
+        INC     DE
+        DEC     BC
+        LD      A,B
+        OR      C
+        RET     Z
+        LD      A,(COLLISION_PACKED)
+        RRCA
+        RRCA
+        RRCA
+        RRCA
+        AND     00Fh
+        RLCA
+        RLCA
+        RLCA
+        RLCA
+        LD      (DE),A
+        INC     DE
+        DEC     BC
+        LD      A,B
+        OR      C
+        JP      NZ,COLLISION_UNPACK_LOOP
         RET
 
 ; Full-room images are decoded into the 720x256 background buffer.
