@@ -335,9 +335,8 @@ JUMP_CHECK_BOTTOM:
         JP      JUMP_DRAW_FRAME
 
 JUMP_BOTTOM_LIMIT:
-        ; The first room's right-hand drop shaft is the room connector. When
-        ; Rick reaches the bottom while inside columns 24..27, enter submap 1
-        ; instead of treating the screen edge as an ordinary landing.
+        ; Fallback bottom limit. The normal first-room connector is handled
+        ; earlier, after the fourth viewport has scrolled into place.
         CALL    TRY_DROP_ROOM_TRANSITION
         JP      C,JUMP_LANDED
         JP      MAIN_LOOP
@@ -623,10 +622,9 @@ ROOM_TRANSITION_BLOCKED:
         SCF
         RET
 
-; At the bottom of room 0, the drop shaft occupies original game X 192..223
-; (tile columns 24..27). Rick's collision box is X+5..X+17, so its origin
-; must be 187..206 for the complete sampled body to fit inside the shaft.
-; A successful exit uses the existing right connector and left-side re-entry.
+; At connector row 38h in the fourth view, the drop shaft occupies original
+; game X 192..223 (tile columns 24..27). Rick's collision box is X+5..X+17,
+; so his origin must be 187..206 to fit the sampled body inside the shaft.
 TRY_DROP_ROOM_TRANSITION:
         LD      A,(ROOM_INDEX)
         OR      A
