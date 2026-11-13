@@ -121,12 +121,21 @@ GROUND_TRY_MOVE:
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
 
-        ; Check only the foot row for floor support. A full-body check one
-        ; scanline lower can mistake the side wall of a hole for a floor.
+        ; Probe one original game pixel lower to determine whether Rick
+        ; is still supported. The offset is 1 or 2 PCW scanlines depending
+        ; on the resampling phase (exactly one source-game pixel).
         LD      A,(PLAYER_SCREEN_Y)
-        ADD     A,28
-        CALL    SCREEN_TO_MAP_ROW
-        CALL    CHECK_AIR_ROW
+        AND     03h
+        LD      A,(PLAYER_SCREEN_Y)
+        JP      NZ,GROUND_SUPPORT_Y_NEXT
+        ADD     A,02h
+        JP      GROUND_SUPPORT_Y_READY
+GROUND_SUPPORT_Y_NEXT:
+        INC     A
+GROUND_SUPPORT_Y_READY:
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
         JP      C,GROUND_HAS_SUPPORT
         CALL    START_FALL
 
@@ -485,96 +494,86 @@ AIR_TRY_MOVE:
 CHECK_AIR_POSITION:
         LD      (CANDIDATE_X),A
 
-        ; Collision box spans game X+5 through X+17. Check left, middle,
-        ; and right tile columns to cover the full 13-pixel body width.
-        LD      L,A
-        LD      H,00h
-        LD      DE,0005h
-        ADD     HL,DE
-        SRL     H
-        RR      L
-        SRL     H
-        RR      L
-        SRL     H
-        RR      L
-        LD      A,L
+        ; Match the original PC probe: start at X+4, checking two columns
+        ; when aligned to an 8-pixel tile or three when unaligned.
+        ADD     A,04h
+        LD      B,A
+        AND     07h
+        LD      A,02h
+        JP      Z,AIR_COLUMN_COUNT_READY
+        INC     A
+AIR_COLUMN_COUNT_READY:
+        LD      (AIR_COL_COUNT),A
+        LD      A,B
+        SRL     A
+        SRL     A
+        SRL     A
         LD      (AIR_COL_LEFT),A
         INC     A
         LD      (AIR_COL_MID),A
+        INC     A
+        LD      (AIR_COL_RIGHT),A
 
-        LD      A,(CANDIDATE_X)
+        ; Convert the PCW scanline to source-game Y = floor(3*Y/4).
+        ; The original probe changes height depending on source Y bit 2.
+        LD      A,(AIR_CHECK_Y)
         LD      L,A
         LD      H,00h
-        LD      DE,0011h
+        LD      D,H
+        LD      E,L
+        ADD     HL,HL
         ADD     HL,DE
         SRL     H
         RR      L
         SRL     H
         RR      L
-        SRL     H
-        RR      L
         LD      A,L
-        LD      (AIR_COL_RIGHT),A
-
-        ; The original body is 21 scanlines high; the PCW sprite is 28.
-        LD      A,(AIR_CHECK_Y)
         LD      B,A
+        AND     04h
+        LD      C,A
+        LD      A,B
+        SRL     A
+        SRL     A
+        SRL     A
+        LD      (AIR_TEST_ROW),A
+
+        ; Standing checks three/four rows. Crawling skips the upper
+        ; clearance row and checks only two/three, as u_envtest() does.
         LD      A,(CROUCHING)
         OR      A
+        JP      Z,AIR_STANDING_ROW_START
+        LD      A,(AIR_TEST_ROW)
+        INC     A
+        LD      (AIR_TEST_ROW),A
+        LD      A,02h
+        JP      AIR_ROW_COUNT_BASE
+AIR_STANDING_ROW_START:
+        LD      A,03h
+AIR_ROW_COUNT_BASE:
+        LD      B,A
+        LD      A,C
+        OR      A
+        JP      Z,AIR_ROW_COUNT_READY
+        INC     B
+AIR_ROW_COUNT_READY:
         LD      A,B
-        JP      Z,AIR_STANDING_ROWS
-        ADD     A,08h
-        CALL    SCREEN_TO_MAP_ROW
-        LD      (AIR_ROW_TOP),A
-        LD      A,(AIR_CHECK_Y)
-        ADD     A,17
-        CALL    SCREEN_TO_MAP_ROW
-        LD      (AIR_ROW_MID),A
-        LD      A,(AIR_CHECK_Y)
-        ADD     A,25
-        JP      AIR_BOTTOM_ROW
-AIR_STANDING_ROWS:
-        CALL    SCREEN_TO_MAP_ROW
-        LD      (AIR_ROW_TOP),A
-        LD      A,(AIR_CHECK_Y)
-        ADD     A,14
-        CALL    SCREEN_TO_MAP_ROW
-        LD      (AIR_ROW_MID),A
-        LD      A,(AIR_CHECK_Y)
-        ADD     A,27
-AIR_BOTTOM_ROW:
-        
-        CALL    SCREEN_TO_MAP_ROW
-        LD      (AIR_ROW_BOTTOM),A
+        LD      (AIR_ROWS_LEFT),A
 
-        LD      A,(AIR_ROW_TOP)
+AIR_POSITION_ROW_LOOP:
+        LD      A,(AIR_TEST_ROW)
         CALL    CHECK_AIR_ROW
         RET     C
-        LD      A,(AIR_ROW_MID)
-        CALL    CHECK_AIR_ROW
-        RET     C
-        LD      A,(AIR_ROW_BOTTOM)
-        CALL    CHECK_AIR_ROW
+        LD      A,(AIR_TEST_ROW)
+        INC     A
+        LD      (AIR_TEST_ROW),A
+        LD      A,(AIR_ROWS_LEFT)
+        DEC     A
+        LD      (AIR_ROWS_LEFT),A
+        JP      NZ,AIR_POSITION_ROW_LOOP
+        OR      A
         RET
 
-; Convert a PCW scanline to the visible room's tile-row index:
-; floor(scanline * 3 / 32). Input/output A.
-SCREEN_TO_MAP_ROW:
-        LD      L,A
-        LD      H,00h
-        LD      D,H
-        LD      E,L                   ; DE = y
-        ADD     HL,HL                 ; 2*y
-        ADD     HL,DE                 ; 3*y
-        LD      B,05h
-SCREEN_ROW_SHIFT:
-        SRL     H
-        RR      L
-        DJNZ    SCREEN_ROW_SHIFT
-        LD      A,L
-        RET
-
-; Check three columns on one tile row. Input A=row index.
+; Check two/three columns on one tile row. Input A=row index.
 CHECK_AIR_ROW:
         LD      (AIR_TEST_ROW),A
         LD      A,(AIR_COL_LEFT)
@@ -589,6 +588,9 @@ CHECK_AIR_ROW:
         LD      B,A
         CALL    CHECK_AIR_TILE
         RET     C
+        LD      A,(AIR_COL_COUNT)
+        CP      03h
+        RET     NZ
         LD      A,(AIR_COL_RIGHT)
         LD      C,A
         LD      A,(AIR_TEST_ROW)
@@ -1420,11 +1422,9 @@ AIR_COL_MID:
         DB      00h
 AIR_COL_RIGHT:
         DB      00h
-AIR_ROW_TOP:
+AIR_COL_COUNT:
         DB      00h
-AIR_ROW_MID:
-        DB      00h
-AIR_ROW_BOTTOM:
+AIR_ROWS_LEFT:
         DB      00h
 AIR_TEST_ROW:
         DB      00h
