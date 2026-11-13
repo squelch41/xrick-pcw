@@ -116,6 +116,9 @@ GROUND_TRY_MOVE:
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
         LD      A,(CANDIDATE_X)
+        XOR     A
+        LD      (AIR_CHECK_MODE),A
+        LD      A,(CANDIDATE_X)
         CALL    CHECK_AIR_POSITION
         JP      C,GROUND_MOVE_BLOCKED
         LD      A,(CANDIDATE_X)
@@ -134,6 +137,8 @@ GROUND_SUPPORT_Y_NEXT:
         INC     A
 GROUND_SUPPORT_Y_READY:
         LD      (AIR_CHECK_Y),A
+        LD      A,02h
+        LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
         JP      C,GROUND_HAS_SUPPORT
@@ -186,6 +191,8 @@ STAND_UP:
         LD      (CROUCHING),A
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
+        XOR     A
+        LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
         JP      NC,STAND_UP_CLEAR
@@ -216,6 +223,9 @@ CRAWL_TRY_MOVE:
         LD      (CANDIDATE_X),A
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
+        LD      A,(CANDIDATE_X)
+        XOR     A
+        LD      (AIR_CHECK_MODE),A
         LD      A,(CANDIDATE_X)
         CALL    CHECK_AIR_POSITION
         JP      C,CRAWL_BLOCKED
@@ -325,6 +335,18 @@ START_JUMP_FRAME:
 JUMP_UPDATE:
         ; Poll once per airborne frame so S/D can steer Rick in mid-air.
         CALL    JUMP_POLL_INPUT
+
+        ; Select the original environment-test rules for vertical movement:
+        ; VERT blocks up/down; WAYUP blocks only downward movement.
+        LD      HL,(JUMP_VELOCITY)
+        BIT     7,H
+        JP      Z,JUMP_COLLISION_DOWN
+        LD      A,01h
+        JP      JUMP_COLLISION_MODE_READY
+JUMP_COLLISION_DOWN:
+        LD      A,02h
+JUMP_COLLISION_MODE_READY:
+        LD      (AIR_CHECK_MODE),A
 
         ; Integrate vertical position, retaining the old value for collision.
         LD      HL,(PLAYER_Y_FP)
@@ -482,6 +504,9 @@ AIR_TRY_MOVE:
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
         LD      A,(CANDIDATE_X)
+        XOR     A
+        LD      (AIR_CHECK_MODE),A
+        LD      A,(CANDIDATE_X)
         CALL    CHECK_AIR_POSITION
         RET     C
         LD      A,(CANDIDATE_X)
@@ -560,9 +585,52 @@ AIR_ROW_COUNT_READY:
         LD      (AIR_ROWS_LEFT),A
 
 AIR_POSITION_ROW_LOOP:
+        ; SOLID/SPAD block on every sampled row. WAYUP is tested only on
+        ; the final row, as in the original PC environment probe.
+        LD      A,(AIR_ROWS_LEFT)
+        CP      01h
+        JP      NZ,AIR_INTERMEDIATE_ROW
+        LD      A,(AIR_CHECK_MODE)
+        CP      01h
+        LD      A,070h
+        JP      NZ,AIR_POSITION_MASK_READY
+        LD      A,060h
+        JP      AIR_POSITION_MASK_READY
+AIR_INTERMEDIATE_ROW:
+        LD      A,060h
+AIR_POSITION_MASK_READY:
+        LD      (AIR_TILE_MASK),A
         LD      A,(AIR_TEST_ROW)
         CALL    CHECK_AIR_ROW
         RET     C
+
+        ; In the original probe VERT comes from the unfiltered centre tile
+        ; on the final row (both columns when the box is tile-aligned).
+        LD      A,(AIR_ROWS_LEFT)
+        CP      01h
+        JP      NZ,AIR_ROW_ADVANCE
+        LD      A,(AIR_CHECK_MODE)
+        OR      A
+        JP      Z,AIR_ROW_ADVANCE
+        LD      A,080h
+        LD      (AIR_TILE_MASK),A
+        LD      A,(AIR_COL_COUNT)
+        CP      02h
+        JP      NZ,AIR_FINAL_CENTRE
+        LD      A,(AIR_COL_LEFT)
+        LD      C,A
+        LD      A,(AIR_TEST_ROW)
+        LD      B,A
+        CALL    CHECK_AIR_TILE
+        RET     C
+AIR_FINAL_CENTRE:
+        LD      A,(AIR_COL_MID)
+        LD      C,A
+        LD      A,(AIR_TEST_ROW)
+        LD      B,A
+        CALL    CHECK_AIR_TILE
+        RET     C
+AIR_ROW_ADVANCE:
         LD      A,(AIR_TEST_ROW)
         INC     A
         LD      (AIR_TEST_ROW),A
@@ -619,7 +687,9 @@ CHECK_AIR_TILE:
         LD      DE,(ROOM_FLAGS_PTR)
         ADD     HL,DE
         LD      A,(HL)
-        AND     070h
+        LD      C,A
+        LD      A,(AIR_TILE_MASK)
+        AND     C
         JP      Z,AIR_TILE_CLEAR
 AIR_TILE_BLOCKED:
         SCF
@@ -1428,6 +1498,10 @@ AIR_ROWS_LEFT:
         DB      00h
 AIR_TEST_ROW:
         DB      00h
+AIR_CHECK_MODE:
+        DB      00h                    ; 0=horizontal, 1=up, 2=down
+AIR_TILE_MASK:
+        DB      070h
 PLAYER_DIRECTION:
         DB      00h                    ; 0=right, 1=left
 WALK_FRAME:
