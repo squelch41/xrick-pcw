@@ -85,7 +85,10 @@ def render_background(tile_ids: list[int], page: int, tile_source: str) -> bytea
                 word = bank[tile * 8 + sy]
                 row = pixels[ty * 8 + sy]
                 for x in range(8):
-                    row[tx * 8 + x] = (word >> (14 - 2 * x)) & 1
+                    # The original PC palette's non-black indices are all bright enough
+                    # for the PCW's one-bit white level (green, red and yellow).
+                    # Keeping only the low index bit wrongly turns red (2) black.
+                    row[tx * 8 + x] = int(((word >> (14 - 2 * x)) & 3) != 0)
     output = bytearray(SCREEN_BYTES)
     for y in range(SCREEN_HEIGHT):
         sy = (y * ROOM_HEIGHT) // SCREEN_HEIGHT
