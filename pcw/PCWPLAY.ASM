@@ -10,7 +10,7 @@
 ;   Q = clear the display and return to CP/M
 ;
 ; This milestone adds the original PC jump impulse and jump poses, plus
-; S/D air steering and collision against first-room solid tiles. Rick now
+; A/D air steering and collision against first-room solid tiles. Rick now
 ; lands on tile surfaces and falls when walking off an edge.
 ; Walking remains one original game step per keypress.
 ;
@@ -320,7 +320,7 @@ SELECT_IDLE:
 
 ; Start a complete jump from the current standing height, using the
 ; original PC game's initial impulse and gravity scaled to the PCW display.
-; S/D can steer in the air; first-room tiles stop movement and support landing.
+; A/D select persistent air steering; S cancels it. Tiles stop movement.
 START_JUMP:
         LD      A,(PLAYER_DIRECTION)
         OR      A
