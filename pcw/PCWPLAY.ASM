@@ -124,9 +124,9 @@ GROUND_TRY_MOVE:
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
 
-        ; Probe one original game pixel lower to determine whether Rick
-        ; is still supported. The offset is 1 or 2 PCW scanlines depending
-        ; on the resampling phase (exactly one source-game pixel).
+        ; Probe one original game pixel lower, but test only the bottom row.
+        ; A full-body probe can mistake a nearby wall for floor support.
+        ; The offset is 1 or 2 PCW scanlines (one source-game pixel).
         LD      A,(PLAYER_SCREEN_Y)
         AND     03h
         LD      A,(PLAYER_SCREEN_Y)
@@ -137,7 +137,7 @@ GROUND_SUPPORT_Y_NEXT:
         INC     A
 GROUND_SUPPORT_Y_READY:
         LD      (AIR_CHECK_Y),A
-        LD      A,02h
+        LD      A,03h
         LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
@@ -232,9 +232,8 @@ CRAWL_TRY_MOVE:
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
 
-        ; Crawling must still test for floor support after moving. Without
-        ; this check Rick can leave the end of a ledge and continue crawling
-        ; horizontally through the air instead of beginning a fall.
+        ; Crawling also needs a floor-support test after moving. Check only the
+        ; feet row so a nearby wall cannot masquerade as supporting floor.
         LD      A,(PLAYER_SCREEN_Y)
         AND     03h
         LD      A,(PLAYER_SCREEN_Y)
@@ -245,7 +244,7 @@ CRAWL_SUPPORT_Y_NEXT:
         INC     A
 CRAWL_SUPPORT_Y_READY:
         LD      (AIR_CHECK_Y),A
-        LD      A,02h
+        LD      A,03h
         LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
@@ -643,6 +642,12 @@ AIR_ROW_COUNT_READY:
         LD      A,B
         LD      (AIR_ROWS_LEFT),A
 
+        ; Mode 3 is a floor-support probe. Use only the bottom row of the
+        ; normal standing/crouching shape, not the complete body rectangle.
+        LD      A,(AIR_CHECK_MODE)
+        CP      03h
+        JP      Z,AIR_SUPPORT_ONLY
+
 AIR_POSITION_ROW_LOOP:
         ; SOLID/SPAD block on every sampled row. WAYUP is tested only on
         ; the final row, as in the original PC environment probe.
@@ -699,6 +704,19 @@ AIR_ROW_ADVANCE:
         JP      NZ,AIR_POSITION_ROW_LOOP
         OR      A
         RET
+
+AIR_SUPPORT_ONLY:
+        LD      A,(AIR_ROWS_LEFT)
+        DEC     A
+        LD      B,A
+        LD      A,(AIR_TEST_ROW)
+        ADD     A,B
+        LD      (AIR_TEST_ROW),A
+        LD      A,070h                 ; SOLID, SPAD or one-way platform
+        LD      (AIR_TILE_MASK),A
+        LD      A,(AIR_TEST_ROW)
+        CALL    CHECK_AIR_ROW
+        RET                             ; Carry means a supporting floor exists
 
 ; Check two/three columns on one tile row. Input A=row index.
 CHECK_AIR_ROW:
