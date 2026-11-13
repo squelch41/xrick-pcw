@@ -66,7 +66,7 @@ def convert_word_low_bit(word: int) -> int:
     """Project eight 2-bit CGA pixels to one bit, preserving left-to-right order."""
     result = 0
     for x in range(8):
-        result |= ((word >> (14 - 2 * x)) & 1) << (7 - x)
+        result |= (int(((word >> (14 - 2 * x)) & 3) != 0)) << (7 - x)
     return result
 
 
