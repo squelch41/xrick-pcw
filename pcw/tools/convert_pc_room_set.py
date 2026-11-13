@@ -237,14 +237,14 @@ def main() -> int:
                 if len(collision) != 768:
                     raise ValueError(f"room {room}: expected 768 collision cells")
 
-                # The game only tests bits 4..6 (three collision flags).
-                # Store two 4-bit values per byte; the Z80 expands them into
-                # the writable one-byte-per-tile viewport at runtime.
+                # Store bits 4..7 (SOLID, SPAD, WAYUP and VERT) as
+                # one 4-bit class per tile. The Z80 expands two cells per
+                # byte into the writable one-byte-per-tile viewport.
                 def pack_collision(cells: list[int]) -> bytes:
                     packed = bytearray()
                     for i in range(0, len(cells), 2):
-                        low = (cells[i] & 0x70) >> 4
-                        high = (cells[i + 1] & 0x70) >> 4
+                        low = ((cells[i] & 0x70) >> 4) | ((cells[i] & 0x80) >> 4)
+                        high = ((cells[i + 1] & 0x70) >> 4) | ((cells[i + 1] & 0x80) >> 4)
                         packed.append(low | (high << 4))
                     return bytes(packed)
 
