@@ -71,7 +71,7 @@ def tile_flags(src: str, page: int) -> list[int]:
         raise ValueError(f"expanded tile flags have {len(result)} entries")
     return result
 
-def render_background(tile_ids: list[int], page: int, tile_source: str) -> bytearray:
+def render_background(tile_ids: list[int], page: int, tile_source: str, flags: list[int]) -> bytearray:
     words = values(extract(tile_source, "tiles_banks"))
     bank_no = 3 if page == 1 else 2
     bank = words[bank_no * 256 * 8:(bank_no + 1) * 256 * 8]
@@ -81,14 +81,19 @@ def render_background(tile_ids: list[int], page: int, tile_source: str) -> bytea
     for ty in range(24):
         for tx in range(32):
             tile = tile_ids[ty * 32 + tx]
+            tile_flag = flags[tile]
             for sy in range(8):
                 word = bank[tile * 8 + sy]
                 row = pixels[ty * 8 + sy]
                 for x in range(8):
-                    # The original PC palette's non-black indices are all bright enough
-                    # for the PCW's one-bit white level (green, red and yellow).
-                    # Keeping only the low index bit wrongly turns red (2) black.
-                    row[tx * 8 + x] = int(((word >> (14 - 2 * x)) & 3) != 0)
+                    colour = (word >> (14 - 2 * x)) & 3
+                    # Keep the compact 0/2 -> black, 1/3 -> white mapping
+                    # generally. Reveal red (index 2) on climbable ladder
+                    # and one-way platform tiles, where it carries structure.
+                    white = (colour & 1) != 0
+                    if colour == 2 and (tile_flag & 0x12):
+                        white = True
+                    row[tx * 8 + x] = int(white)
     output = bytearray(SCREEN_BYTES)
     for y in range(SCREEN_HEIGHT):
         sy = (y * ROOM_HEIGHT) // SCREEN_HEIGHT
@@ -246,7 +251,7 @@ def main() -> int:
                 suffix = "" if scroll == 0 else f"_SCROLL{scroll}"
                 flag_label = f"PCW_ROOM{room}{suffix}_FLAGS"
                 bg_label = f"PCW_ROOM{room}{suffix}_BG_COMP"
-                raster = render_background(tile_ids, page, tiles)
+                raster = render_background(tile_ids, page, tiles, flags)
 
                 if room == 0 and scroll > 0:
                     # A viewport scrolls by eight 8-pixel tiles. Store only
