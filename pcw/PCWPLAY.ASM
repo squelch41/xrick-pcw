@@ -658,7 +658,13 @@ CHECK_AIR_ROW:
         RET     C
         LD      A,(AIR_COL_COUNT)
         CP      03h
-        RET     NZ
+        JP      Z,CHECK_AIR_ROW_THIRD
+        ; Two columns are the complete aligned probe. CP 03h leaves carry
+        ; set for a count of 2, so explicitly clear it before returning;
+        ; otherwise a clear tile is misreported as a collision.
+        OR      A
+        RET
+CHECK_AIR_ROW_THIRD:
         LD      A,(AIR_COL_RIGHT)
         LD      C,A
         LD      A,(AIR_TEST_ROW)
