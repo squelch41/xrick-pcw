@@ -746,9 +746,9 @@ ROOM_TRANSITION_BLOCKED:
         SCF
         RET
 
-; At connector row 38h in the fourth view, the drop shaft occupies original
-; game X 192..223 (tile columns 24..27). Rick's collision box is X+5..X+17,
-; so his origin must be 187..206 to fit the sampled body inside the shaft.
+; At connector row 38h in the fourth view, preserve the previously tested
+; shaft-entry window (player origin X=187..206). Keep this connector gate
+; independent of the alignment-dependent movement collision probe.
 TRY_DROP_ROOM_TRANSITION:
         LD      A,(ROOM_INDEX)
         OR      A
