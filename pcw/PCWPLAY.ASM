@@ -231,6 +231,28 @@ CRAWL_TRY_MOVE:
         JP      C,CRAWL_BLOCKED
         LD      A,(CANDIDATE_X)
         LD      (PLAYER_X),A
+
+        ; Crawling must still test for floor support after moving. Without
+        ; this check Rick can leave the end of a ledge and continue crawling
+        ; horizontally through the air instead of beginning a fall.
+        LD      A,(PLAYER_SCREEN_Y)
+        AND     03h
+        LD      A,(PLAYER_SCREEN_Y)
+        JP      NZ,CRAWL_SUPPORT_Y_NEXT
+        ADD     A,02h
+        JP      CRAWL_SUPPORT_Y_READY
+CRAWL_SUPPORT_Y_NEXT:
+        INC     A
+CRAWL_SUPPORT_Y_READY:
+        LD      (AIR_CHECK_Y),A
+        LD      A,02h
+        LD      (AIR_CHECK_MODE),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        JP      C,CRAWL_HAS_SUPPORT
+        CALL    START_FALL
+
+CRAWL_HAS_SUPPORT:
         LD      A,(CRAWL_FRAME)
         XOR     01h
         LD      (CRAWL_FRAME),A
