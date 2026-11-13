@@ -62,8 +62,8 @@ def fmt_byte(value: int) -> str:
     return f"{digits}h"
 
 
-def convert_word_low_bit(word: int) -> int:
-    """Project eight 2-bit CGA pixels to one bit, preserving left-to-right order."""
+def convert_word_monochrome(word: int) -> int:
+    """Map every non-black 2-bit CGA colour to white, preserving pixel order."""
     result = 0
     for x in range(8):
         result |= (int(((word >> (14 - 2 * x)) & 3) != 0)) << (7 - x)
@@ -177,7 +177,7 @@ def render_source_room(
     if len(bank) != 256 * 8:
         raise ValueError("PC tile bank 2 is incomplete")
 
-    # Original room tiles are 8x8, 2bpp CGA words. Retain the low colour bit.
+    # Original room tiles are 8x8, 2bpp CGA words. Map non-black colours to white.
     pixels = [[0] * ROOM_WIDTH for _ in range(ROOM_HEIGHT)]
     for tile_y in range(24):
         for tile_x in range(32):
