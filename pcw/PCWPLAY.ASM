@@ -88,6 +88,7 @@ MAIN_LOOP:
 MOVE_LEFT:
         LD      A,01h
         LD      (PLAYER_DIRECTION),A
+        CALL    AUTO_STAND_IF_CLEAR
         LD      A,(CROUCHING)
         OR      A
         JP      NZ,CRAWL_LEFT
@@ -101,6 +102,7 @@ MOVE_LEFT:
 MOVE_RIGHT:
         XOR     A
         LD      (PLAYER_DIRECTION),A
+        CALL    AUTO_STAND_IF_CLEAR
         LD      A,(CROUCHING)
         OR      A
         JP      NZ,CRAWL_RIGHT
@@ -205,6 +207,24 @@ STAND_UP_CLEAR:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
+
+; Match the original game's automatic uncrouch: as soon as the standing
+; collision box has clear headroom, leave the two-frame crawl animation.
+AUTO_STAND_IF_CLEAR:
+        LD      A,(CROUCHING)
+        OR      A
+        RET     Z
+        XOR     A
+        LD      (CROUCHING),A
+        LD      (AIR_CHECK_MODE),A
+        LD      A,(PLAYER_SCREEN_Y)
+        LD      (AIR_CHECK_Y),A
+        LD      A,(PLAYER_X)
+        CALL    CHECK_AIR_POSITION
+        RET     NC
+        LD      A,01h
+        LD      (CROUCHING),A
+        RET
 
 CRAWL_LEFT:
         LD      A,(PLAYER_X)
@@ -358,6 +378,9 @@ START_JUMP_FRAME:
         LD      (JUMP_VELOCITY),HL
 
 JUMP_UPDATE:
+        ; The original game automatically stands when crawl clearance opens.
+        CALL    AUTO_STAND_IF_CLEAR
+
         ; Read A/D once per frame, then keep moving in the last selected
         ; direction until the opposite key is pressed or Rick lands.
         CALL    JUMP_POLL_INPUT
@@ -465,6 +488,7 @@ JUMP_LANDED:
         LD      (PLAYER_SCREEN_Y),A
         LD      HL,0000h
         LD      (JUMP_VELOCITY),HL
+        CALL    AUTO_STAND_IF_CLEAR
         LD      A,(CROUCHING)
         OR      A
         JP      NZ,JUMP_LANDED_CROUCHED
