@@ -333,7 +333,7 @@ START_JUMP_FRAME:
         LD      (JUMP_VELOCITY),HL
 
 JUMP_UPDATE:
-        ; Poll once per airborne frame so S/D can steer Rick in mid-air.
+        ; Poll once per airborne frame so A/D can steer Rick in mid-air.
         CALL    JUMP_POLL_INPUT
 
         ; Select the original environment-test rules for vertical movement:
@@ -450,7 +450,7 @@ JUMP_DELAY_LOOP:
         JP      NZ,JUMP_DELAY_LOOP
         RET
 
-; Read one key during each jump frame. S/D adjust X by the original two-pixel
+; Read one key during each jump frame. A/D adjust X by the original two-pixel
 ; game step and select the matching jump pose. Tile flags reject blocked moves.
 JUMP_POLL_INPUT:
         LD      C,06h
@@ -514,7 +514,7 @@ AIR_TRY_MOVE:
         RET
 
 ; Check the player's approximate original PC collision box against the
-; first room's 32x24 tile flags. Input A=candidate game X and AIR_CHECK_Y
+; current 32x24 tile-flag viewport. Input A=candidate game X and AIR_CHECK_Y
 ; is the candidate top scanline. Carry means blocked.
 CHECK_AIR_POSITION:
         LD      (CANDIDATE_X),A
@@ -665,8 +665,8 @@ CHECK_AIR_ROW:
         LD      B,A
         JP      CHECK_AIR_TILE
 
-; Input B=row, C=column. SOLID, SPAD and WAYUP all block this simple
-; first-room movement test. Out-of-grid positions are treated as blocked.
+; Input B=row, C=column. AIR_TILE_MASK selects the flags to test.
+; Out-of-grid positions are treated as blocked.
 CHECK_AIR_TILE:
         LD      A,B
         CP      24
