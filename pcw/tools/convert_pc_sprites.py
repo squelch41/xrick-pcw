@@ -5,10 +5,9 @@ Input records in dat_spritesPC.c are stored sprite -> column -> row.
 Output records are stored sprite -> row -> column, with each source byte
 represented by an interleaved MASK,PIXELS pair.
 
-The source uses two bits per pixel. We retain the low bit of each CGA
-colour index: with Xrick's PC palette this maps indices 0/2 to black and
-1/3 to white. This is also an exact projection of the original drawing
-operation ((old & mask) | pict) onto that retained bit.
+The source uses two bits per pixel. The PC palette's non-black indices
+(1=green, 2=red, 3=yellow) all map to white on the PCW. A mask value of 3
+preserves the destination; zero paints the converted picture pixel.
 """
 
 from __future__ import annotations
@@ -44,8 +43,10 @@ def convert_word(mask_word: int, picture_word: int) -> tuple[int, int]:
     for x in range(PIXELS_PER_WORD):
         shift = 14 - 2 * x
         out_bit = 7 - x
-        mask_byte |= ((mask_word >> shift) & 1) << out_bit
-        picture_byte |= ((picture_word >> shift) & 1) << out_bit
+        mask_pixel = (mask_word >> shift) & 3
+        picture_pixel = (picture_word >> shift) & 3
+        mask_byte |= int(mask_pixel == 3) << out_bit
+        picture_byte |= int(picture_pixel != 0) << out_bit
     return mask_byte, picture_byte
 
 
