@@ -465,7 +465,14 @@ JUMP_LANDED:
         LD      (PLAYER_SCREEN_Y),A
         LD      HL,0000h
         LD      (JUMP_VELOCITY),HL
+        LD      A,(CROUCHING)
+        OR      A
+        JP      NZ,JUMP_LANDED_CROUCHED
         CALL    SELECT_IDLE_SPRITE
+        JP      JUMP_LANDED_REDRAW
+JUMP_LANDED_CROUCHED:
+        CALL    SELECT_CRAWL_SPRITE
+JUMP_LANDED_REDRAW:
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
