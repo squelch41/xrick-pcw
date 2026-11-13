@@ -273,6 +273,8 @@ START_FALL_LEFT:
         LD      HL,PCW_PLAYER_15
 START_FALL_FRAME:
         LD      (PLAYER_SPRITE_PTR),HL
+        XOR     A
+        LD      (AIR_STEER),A
         LD      HL,0000h
         LD      (JUMP_VELOCITY),HL
         JP      JUMP_UPDATE
@@ -329,12 +331,16 @@ START_JUMP_LEFT:
         LD      HL,PCW_PLAYER_15
 START_JUMP_FRAME:
         LD      (PLAYER_SPRITE_PTR),HL
+        XOR     A
+        LD      (AIR_STEER),A
         LD      HL,0F8ABh              ; -7.332 PCW pixels/update (~ -5.5 game px)
         LD      (JUMP_VELOCITY),HL
 
 JUMP_UPDATE:
-        ; Poll once per airborne frame so A/D can steer Rick in mid-air.
+        ; Read A/D once per frame, then keep moving in the last selected
+        ; direction until the opposite key is pressed or Rick lands.
         CALL    JUMP_POLL_INPUT
+        CALL    AIR_REPEAT_STEER
 
         ; Select the original environment-test rules for vertical movement:
         ; VERT blocks up/down; WAYUP blocks only downward movement.
@@ -430,6 +436,8 @@ JUMP_DRAW_FRAME:
 
 JUMP_LANDED:
         ; Keep the last safe position rather than snapping back to y=100.
+        XOR     A
+        LD      (AIR_STEER),A
         LD      HL,(OLD_PLAYER_Y_FP)
         LD      (PLAYER_Y_FP),HL
         LD      A,H
@@ -440,9 +448,10 @@ JUMP_LANDED:
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
 
-; A short pause keeps successive jump poses visible in Joyce and on hardware.
+; Approx. 50 ms between airborne updates on a 4 MHz Z80. This gives
+; the CP/M console time to deliver keyboard repeats during a normal jump.
 JUMP_DELAY:
-        LD      BC,0800h
+        LD      BC,02000h
 JUMP_DELAY_LOOP:
         DEC     BC
         LD      A,B
@@ -450,8 +459,9 @@ JUMP_DELAY_LOOP:
         JP      NZ,JUMP_DELAY_LOOP
         RET
 
-; Read one key during each jump frame. A/D adjust X by the original two-pixel
-; game step and select the matching jump pose. Tile flags reject blocked moves.
+; A/D select a persistent airborne direction. CP/M function 6 is a
+; non-blocking character read, not a key-state query, so relying on a held
+; key at every short physics frame loses input on real keyboards.
 JUMP_POLL_INPUT:
         LD      C,06h
         LD      E,0FFh
@@ -459,14 +469,41 @@ JUMP_POLL_INPUT:
         OR      A
         RET     Z
         CP      041h                  ; A
-        JP      Z,AIR_TURN_LEFT
+        JP      Z,AIR_SET_STEER_LEFT
         CP      061h                  ; a
-        JP      Z,AIR_TURN_LEFT
+        JP      Z,AIR_SET_STEER_LEFT
         CP      044h                  ; D
-        JP      Z,AIR_TURN_RIGHT
+        JP      Z,AIR_SET_STEER_RIGHT
         CP      064h                  ; d
-        JP      Z,AIR_TURN_RIGHT
+        JP      Z,AIR_SET_STEER_RIGHT
+        CP      053h                  ; S cancels airborne steering
+        JP      Z,AIR_CLEAR_STEER
+        CP      073h                  ; s
+        JP      Z,AIR_CLEAR_STEER
         RET
+
+AIR_SET_STEER_LEFT:
+        LD      A,01h
+        LD      (AIR_STEER),A
+        RET
+AIR_SET_STEER_RIGHT:
+        LD      A,02h
+        LD      (AIR_STEER),A
+        RET
+AIR_CLEAR_STEER:
+        XOR     A
+        LD      (AIR_STEER),A
+        RET
+
+; Apply one normal two-game-pixel horizontal step per airborne update.
+; Press A or D to steer; S cancels horizontal drift for the rest of the jump.
+AIR_REPEAT_STEER:
+        LD      A,(AIR_STEER)
+        OR      A
+        RET     Z
+        CP      01h
+        JP      Z,AIR_TURN_LEFT
+        JP      AIR_TURN_RIGHT
 
 AIR_TURN_LEFT:
         LD      A,01h
@@ -1505,9 +1542,11 @@ AIR_ROWS_LEFT:
 AIR_TEST_ROW:
         DB      00h
 AIR_CHECK_MODE:
-        DB      00h                    ; 0=horizontal, 1=up, 2=down
+        DB      00h                    ; 0=horizontal, 1=up, 2=down, 3=support
 AIR_TILE_MASK:
         DB      070h
+AIR_STEER:
+        DB      00h                    ; 0=none, 1=left, 2=right
 PLAYER_DIRECTION:
         DB      00h                    ; 0=right, 1=left
 WALK_FRAME:
