@@ -89,7 +89,7 @@ def main() -> int:
         "; Original PC sprite order: sprite, column, scanline.",
         "; Converted order: sprite, scanline, 8-pixel column.",
         "; Each pair is MASK,PIXELS; mask bit 1 preserves destination.",
-        "; CGA colour-index low bit retained: 0/2 -> black, 1/3 -> white.",
+        "; CGA colour index: 0 -> black; 1/2/3 -> white.",
         "",
     ]
 
