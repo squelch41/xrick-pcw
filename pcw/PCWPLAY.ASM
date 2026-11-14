@@ -458,7 +458,7 @@ JUMP_HIT_OBSTACLE:
         ; a landing. Falling landings use the original game's tile-grid snap.
         LD      HL,(JUMP_VELOCITY)
         BIT     7,H
-        JP      Z,JUMP_LANDED_FLOOR
+        JP      Z,JUMP_LANDED
         LD      HL,(OLD_PLAYER_Y_FP)
         LD      (PLAYER_Y_FP),HL
         LD      HL,0000h
@@ -496,23 +496,13 @@ JUMP_VELOCITY_STORE:
         JP      JUMP_UPDATE
 
 JUMP_LANDED:
-        ; Bottom-limit fallback: keep the last safe position.
+        ; Retain the last non-overlapping position when a fall is blocked.
+        XOR     A
+        LD      (AIR_STEER),A
         LD      HL,(OLD_PLAYER_Y_FP)
         LD      (PLAYER_Y_FP),HL
         LD      A,H
         LD      (PLAYER_SCREEN_Y),A
-        JP      JUMP_LANDED_COMMON
-
-JUMP_LANDED_FLOOR:
-        ; The original PC aligns Rick to y=(y & 0xf8)|3 after landing.
-        ; Convert that source-game tile alignment back to the scaled PCW Y.
-        LD      HL,(OLD_PLAYER_Y_FP)
-        LD      A,H
-        CALL    SNAP_LANDING_POSITION
-
-JUMP_LANDED_COMMON:
-        XOR     A
-        LD      (AIR_STEER),A
         LD      HL,0000h
         LD      (JUMP_VELOCITY),HL
         CALL    AUTO_STAND_IF_CLEAR
@@ -782,7 +772,7 @@ AIR_SUPPORT_ONLY:
         LD      A,(AIR_TEST_ROW)
         ADD     A,B
         LD      (AIR_TEST_ROW),A
-        LD      A,0F0h                 ; VERT, SOLID, SPAD or one-way platform
+        LD      A,070h                 ; SOLID, SPAD or one-way platform
         LD      (AIR_TILE_MASK),A
         LD      A,(AIR_TEST_ROW)
         CALL    CHECK_AIR_ROW
@@ -1605,45 +1595,6 @@ BITMAP_NEXT_COLUMN:
 BITMAP_DONE:
         POP     DE
         POP     BC
-        RET
-
-; Source tile row -> PCW scanline for the original (row*8)+3 landing snap.
-; These are ceil(4 * (row*8+3) / 3), preserving the 3:4 Y scale.
-LANDING_SCREEN_Y:
-        DB      04h,0Fh,1Ah,24h,2Fh,3Ah,44h,4Fh
-        DB      5Ah,64h,6Fh,7Ah,84h,8Fh,9Ah,0A4h
-        DB      0AFh,0BAh,0C4h,0CFh,0DAh,0E4h,0EFh,0FAh
-
-; Input A = last safe PCW scanline. Store the original game's ground-aligned
-; position in both the fixed-point and display Y variables.
-SNAP_LANDING_POSITION:
-        LD      L,A
-        LD      H,00h
-        LD      E,A
-        LD      D,00h
-        ADD     HL,HL                 ; 2*y
-        ADD     HL,DE                 ; 3*y
-        SRL     H
-        RR      L
-        SRL     H
-        RR      L                     ; floor(3*y/4), original game Y
-        LD      A,L
-        SRL     A
-        SRL     A
-        SRL     A                     ; source tile row
-        CP      018h
-        JP      C,SNAP_LANDING_ROW_READY
-        LD      A,017h
-SNAP_LANDING_ROW_READY:
-        LD      E,A
-        LD      D,00h
-        LD      HL,LANDING_SCREEN_Y
-        ADD     HL,DE
-        LD      A,(HL)
-        LD      (PLAYER_SCREEN_Y),A
-        LD      H,A
-        LD      L,00h
-        LD      (PLAYER_Y_FP),HL
         RET
 
 WALK_RIGHT_TABLE:
