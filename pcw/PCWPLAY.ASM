@@ -701,6 +701,7 @@ AIR_ROW_COUNT_READY:
         LD      A,(AIR_CHECK_MODE)
         CP      03h
         JP      Z,AIR_SUPPORT_ONLY
+        JP      AIR_POSITION_ROW_LOOP
 
 AIR_CROUCH_CLEARANCE:
         LD      A,0F0h
