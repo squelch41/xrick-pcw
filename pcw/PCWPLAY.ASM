@@ -417,7 +417,9 @@ JUMP_COLLISION_MODE_READY:
         JP      C,JUMP_SCROLL_THRESHOLD
         CALL    TRY_DROP_ROOM_TRANSITION
         JP      C,JUMP_SCROLL_THRESHOLD
-        JP      MAIN_LOOP
+        ; The new submap continues the same fall. Keep integrating vertical
+        ; motion instead of returning to the input loop.
+        JP      JUMP_UPDATE
 
 JUMP_SCROLL_THRESHOLD:
         LD      A,H
@@ -451,7 +453,7 @@ JUMP_BOTTOM_LIMIT:
         ; earlier, after the fourth viewport has scrolled into place.
         CALL    TRY_DROP_ROOM_TRANSITION
         JP      C,JUMP_LANDED
-        JP      MAIN_LOOP
+        JP      JUMP_UPDATE
 
 JUMP_HIT_OBSTACLE:
         ; A collision while rising is a ceiling bonk; while falling it is
@@ -913,12 +915,10 @@ TRY_DROP_ROOM_TRANSITION:
         LD      (PLAYER_Y_FP),HL
         LD      A,100
         LD      (PLAYER_SCREEN_Y),A
-        LD      HL,0000h
-        LD      (JUMP_VELOCITY),HL
+        ; Preserve JUMP_VELOCITY: the opening can continue through the new
+        ; submap, so Rick must carry his downward momentum across the change.
         CALL    TRANSITION_RIGHT
         RET     C
-        CALL    SELECT_IDLE_SPRITE
-        CALL    REDRAW_SCENE
         OR      A                       ; report successful transition
         RET
 
