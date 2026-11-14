@@ -187,42 +187,39 @@ TOGGLE_CROUCH:
         JP      MAIN_LOOP
 
 STAND_UP:
-        ; Temporarily use the standing collision box. Do not stand if the
-        ; full-height player box would overlap a ceiling or other solid tile.
-        XOR     A
-        LD      (CROUCHING),A
+        ; The original crawl probe tests the extra clearance row only.
+        ; Check VERT, SOLID, SPAD and WAYUP before changing pose.
+        LD      A,04h
+        LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
-        XOR     A
-        LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
-        JP      NC,STAND_UP_CLEAR
-        LD      A,01h
+        JP      C,STAND_UP_BLOCKED
+        XOR     A
         LD      (CROUCHING),A
-        CALL    SELECT_CRAWL_SPRITE
-        CALL    REDRAW_SCENE
-        JP      MAIN_LOOP
-STAND_UP_CLEAR:
         CALL    SELECT_IDLE_SPRITE
         CALL    REDRAW_SCENE
         JP      MAIN_LOOP
+STAND_UP_BLOCKED:
+        CALL    SELECT_CRAWL_SPRITE
+        CALL    REDRAW_SCENE
+        JP      MAIN_LOOP
 
-; Match the original game's automatic uncrouch: as soon as the standing
-; collision box has clear headroom, leave the two-frame crawl animation.
+; Match u_envtest's env0 crawl-clearance probe. Only stand once the
+; additional row above Rick is free of VERT, SOLID, SPAD and WAYUP.
 AUTO_STAND_IF_CLEAR:
         LD      A,(CROUCHING)
         OR      A
         RET     Z
-        XOR     A
-        LD      (CROUCHING),A
+        LD      A,04h
         LD      (AIR_CHECK_MODE),A
         LD      A,(PLAYER_SCREEN_Y)
         LD      (AIR_CHECK_Y),A
         LD      A,(PLAYER_X)
         CALL    CHECK_AIR_POSITION
-        RET     NC
-        LD      A,01h
+        RET     C
+        XOR     A
         LD      (CROUCHING),A
         RET
 
@@ -471,9 +468,29 @@ JUMP_DRAW_FRAME:
         CALL    REDRAW_SCENE
 
         ; Original PC gravity is +0.5 game pixels/update, scaled for the PCW.
+        ; The PC caps downward speed at 8 game pixels/update (0x800). At the
+        ; 4:3 vertical scale this is 10 2/3 PCW pixels/update (0x0AAA).
         LD      HL,(JUMP_VELOCITY)
         LD      DE,000AAh
         ADD     HL,DE
+        BIT     7,H
+        JP      NZ,JUMP_VELOCITY_STORE
+        PUSH    HL
+        LD      DE,00AAAh
+        OR      A
+        SBC     HL,DE
+        POP     HL
+        JP      C,JUMP_VELOCITY_STORE
+        LD      HL,00AAAh
+        LD      (JUMP_VELOCITY),HL
+        ; The original PC also clears its fractional Y accumulator at
+        ; terminal speed, preventing a large step from skipping a floor.
+        LD      HL,(PLAYER_Y_FP)
+        LD      L,00h
+        LD      (PLAYER_Y_FP),HL
+        JP      JUMP_DELAY
+
+JUMP_VELOCITY_STORE:
         LD      (JUMP_VELOCITY),HL
         CALL    JUMP_DELAY
         JP      JUMP_UPDATE
@@ -651,6 +668,12 @@ AIR_COLUMN_COUNT_READY:
         SRL     A
         LD      (AIR_TEST_ROW),A
 
+        ; Mode 4 is the original crawl-clearance (env0) probe: test the
+        ; current top row for VERT, SOLID, SPAD and WAYUP only.
+        LD      A,(AIR_CHECK_MODE)
+        CP      04h
+        JP      Z,AIR_CROUCH_CLEARANCE
+
         ; Standing checks three/four rows. Crawling skips the upper
         ; clearance row and checks only two/three, as u_envtest() does.
         LD      A,(CROUCHING)
@@ -678,6 +701,12 @@ AIR_ROW_COUNT_READY:
         LD      A,(AIR_CHECK_MODE)
         CP      03h
         JP      Z,AIR_SUPPORT_ONLY
+
+AIR_CROUCH_CLEARANCE:
+        LD      A,0F0h
+        LD      (AIR_TILE_MASK),A
+        LD      A,(AIR_TEST_ROW)
+        JP      CHECK_AIR_ROW
 
 AIR_POSITION_ROW_LOOP:
         ; SOLID/SPAD block on every sampled row. WAYUP is tested only on
